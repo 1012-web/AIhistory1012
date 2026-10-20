@@ -1,0 +1,10 @@
+node_modules/
+.next/
+public/pdfjs/
+test-results/
+playwright-report/
+*.tsbuildinfo
+next-env.d.ts
+.tmp/
+# 测试用的书由 scripts/make-fixture.py 按仓库里的《新史學》样本现造（npm test、check、test:e2e 会先跑）
+fixtures/

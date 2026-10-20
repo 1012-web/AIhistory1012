@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "id": "lunzhu2md-6491a14ba5",
+  "title": "新史學",
+  "pdf": "新史學.pdf",
+  "originalPdf": "新史學.pdf",
+  "pageCount": 23,
+  "printedPageOffset": 4,
+  "writingMode": "horizontal-tb",
+  "files": [
+    {
+      "path": "01-中國之舊史.md",
+      "pdfPages": [
+        1,
+        11
+      ],
+      "printedPages": "1-7"
+    },
+    {
+      "path": "02-史學之界說.md",
+      "pdfPages": [
+        12,
+        16
+      ],
+      "printedPages": "8-12"
+    },
+    {
+      "path": "03-論正統.md",
+      "pdfPages": [
+        17,
+        23
+      ],
+      "printedPages": "13-19"
+    }
+  ],
+  "generator": "lunzhu2md 0.1.0"
+}

@@ -1,0 +1,814 @@
+/*
+ * ui/ 组件的样式：工具条、溢出菜单、拖动停靠区、对话框。
+ * 只引用 --aps-* 设计变量（插件在 styles/tokens-obsidian.css 里指向 Obsidian 主题，网页版用 tokens-web.css）。
+ * 规格照 design/toolbar-approved.html 页尾「实现要点」。按钮选择器写得具体些，盖过宿主（Obsidian）的默认按钮样式。
+ */
+
+/* ---- 工具条外框 ---- */
+.aps-toolbar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: var(--aps-layer-toolbar);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 10px;
+  background: var(--aps-surface-2);
+  color: var(--aps-text-primary);
+  font-family: var(--aps-font);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+}
+.aps-toolbar.aps-floating {
+  box-shadow: var(--aps-shadow);
+}
+.aps-toolbar.aps-dragging {
+  box-shadow: var(--aps-shadow);
+  opacity: 0.94;
+}
+.aps-grip {
+  display: inline-flex;
+  color: var(--aps-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -2px;
+  cursor: grab;
+  touch-action: none;
+}
+.aps-toolbar.aps-dragging .aps-grip {
+  cursor: grabbing;
+}
+.aps-ico {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+}
+.aps-secondary {
+  color: var(--aps-text-secondary);
+}
+.aps-muted {
+  color: var(--aps-text-muted);
+}
+
+/* ---- 描边组、图标按钮 ---- */
+.aps-toolbar .aps-grp,
+.aps-menu .aps-grp {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.aps-toolbar button.aps-ib,
+.aps-menu .aps-ib {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.aps-toolbar button.aps-ib:hover,
+.aps-menu .aps-ib:hover,
+.aps-menu .aps-ib[data-highlighted] {
+  background: var(--aps-surface-1);
+  color: var(--aps-text-primary);
+}
+.aps-toolbar button.aps-collapse,
+.aps-toolbar button.aps-more {
+  height: 24px;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+/* ---- 页码步进组 ---- */
+.aps-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 4px;
+}
+.aps-page-field {
+  display: inline-flex;
+}
+.aps-toolbar input.aps-page-input {
+  field-sizing: content;
+  width: auto;
+  min-width: 1.4em;
+  height: 22px;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.aps-toolbar input.aps-page-input:hover,
+.aps-toolbar input.aps-page-input:focus {
+  background: var(--aps-surface-1);
+  outline: none;
+}
+.aps-total {
+  color: var(--aps-text-muted);
+}
+.aps-printed {
+  color: var(--aps-text-secondary);
+}
+
+/* ---- 章名 ---- */
+.aps-chapter {
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--aps-text-secondary);
+}
+.aps-chapter:empty {
+  display: none;
+}
+
+/* ---- 分段开关 ---- */
+.aps-seg {
+  position: relative;
+  display: inline-flex;
+  height: 28px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+}
+.aps-toolbar button.aps-segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.aps-toolbar button.aps-segment[data-pressed] {
+  color: var(--aps-text-accent);
+}
+.aps-seg-ind {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 6px;
+  background: var(--aps-bg-accent);
+}
+.aps-segment-label {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- 小标、进度线 ---- */
+.aps-chip {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.aps-prog {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--aps-text-accent);
+}
+
+/* ---- 拖动时的停靠区 ---- */
+.aps-dock-zone {
+  position: fixed;
+  z-index: var(--aps-layer-toolbar);
+  box-sizing: border-box;
+  border: 1px dashed var(--aps-border-accent);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.aps-dock-zone.is-active {
+  border-style: solid;
+}
+
+/* ---- 溢出菜单 ---- */
+.aps-menu-positioner {
+  z-index: var(--aps-layer-menu);
+}
+.aps-menu {
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 10px;
+  background: var(--aps-surface-2);
+  box-shadow: var(--aps-shadow);
+  color: var(--aps-text-primary);
+  font-family: var(--aps-font);
+  font-size: 12px;
+  outline: none;
+}
+.aps-menu-zoom {
+  width: 100%;
+}
+.aps-menu .aps-zoom-button {
+  width: 32px;
+  outline: none;
+}
+.aps-menu .aps-zoom-value {
+  flex: 1;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.aps-menu-item {
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.aps-menu-item[data-highlighted] {
+  background: var(--aps-surface-1);
+}
+.aps-menu-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aps-menu-check-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 4px;
+  color: var(--aps-text-accent);
+  font-size: 11px;
+}
+.aps-menu-check[data-checked] .aps-menu-check-box {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+}
+.aps-menu-separator {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--aps-border);
+}
+
+/* ---- 对话框 ---- */
+.aps-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--aps-layer-modal);
+  background: var(--aps-cover);
+}
+.aps-dialog {
+  position: fixed;
+  left: 50%;
+  top: 12vh;
+  z-index: var(--aps-layer-modal);
+  translate: -50% 0;
+  width: min(560px, 92vw);
+  max-height: 76vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16px 24px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 12px;
+  background: var(--aps-surface-2);
+  box-shadow: var(--aps-shadow);
+  color: var(--aps-text-primary);
+  font-family: var(--aps-font);
+  font-size: 13px;
+}
+.aps-dialog.aps-pagemark-modal {
+  width: min(880px, 92vw);
+}
+.aps-dialog .aps-muted {
+  color: var(--aps-text-secondary);
+}
+.aps-dialog-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.aps-dialog button.aps-dialog-close {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+.aps-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.aps-dialog button.aps-button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.aps-dialog button.aps-button.mod-cta {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+.aps-dialog button.aps-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.aps-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+.aps-dialog input.aps-range-input {
+  width: 4em;
+  text-align: center;
+}
+.aps-bind-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.aps-bind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.aps-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 4px;
+  background: var(--aps-surface-2);
+  color: var(--aps-text-accent);
+  cursor: pointer;
+}
+.aps-checkbox[data-checked] {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+}
+.aps-checkbox-indicator {
+  display: flex;
+}
+.aps-checkbox-indicator svg {
+  width: 12px;
+  height: 12px;
+}
+.aps-pagemark-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.aps-pagemark-table th,
+.aps-pagemark-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--aps-border);
+  text-align: left;
+}
+.aps-confidence-low td {
+  color: var(--aps-text-secondary);
+}
+.aps-caret {
+  color: var(--aps-text-accent);
+  font-weight: bold;
+}
+
+/* ---- 共用：行、提示、空白、按钮 ---- */
+.aps-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--aps-text-secondary);
+}
+.aps-row.aps-check-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--aps-text-primary);
+  cursor: pointer;
+}
+.aps-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--aps-text-muted);
+}
+.aps-check-row .aps-hint {
+  display: inline;
+}
+.aps-spacer {
+  flex: 1;
+}
+button.aps-button {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+button.aps-button:hover {
+  background: var(--aps-surface-1);
+}
+button.aps-button.mod-cta {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+
+/* ---- 分段选择 ---- */
+.aps-choice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-self: flex-start;
+}
+button.aps-choice-item {
+  position: relative;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button.aps-choice-item[data-pressed] {
+  border-color: var(--aps-border-accent);
+  color: var(--aps-text-accent);
+}
+.aps-choice-ind {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--aps-bg-accent);
+}
+.aps-choice-label {
+  position: relative;
+}
+
+/* ---- 实时预览 ---- */
+.aps-preview {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--aps-border);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+}
+.aps-preview.aps-preview-muted {
+  background: var(--aps-surface-1);
+}
+.aps-pv-pane {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 30px 10px 8px;
+}
+.aps-pv-pane + .aps-pv-pane {
+  border-left: 1px solid var(--aps-border);
+}
+.aps-pv-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--aps-text-muted);
+}
+.aps-pv-line {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--aps-border-strong);
+}
+.aps-pv-tint {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+.aps-pv-tint.is-on {
+  background: var(--aps-bg-accent);
+}
+.aps-pv-chip {
+  align-self: flex-start;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+  font-size: 11px;
+}
+.aps-pv-bar {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 7px;
+  background: var(--aps-surface-2);
+  color: var(--aps-text-primary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ---- 首次引导 ---- */
+.aps-dialog.aps-onboarding {
+  width: min(680px, 94vw);
+  top: 10vh;
+}
+.aps-ob-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.aps-ob-head .aps-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.aps-ob-steps {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--aps-text-secondary);
+}
+.aps-ob-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+}
+.aps-ob-controls {
+  min-height: 250px;
+  overflow: hidden;
+}
+.aps-ob-books {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.aps-ob-book {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.aps-ob-book-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aps-ob-book button.aps-button,
+button.aps-button.aps-ob-skip {
+  font-size: 12px;
+}
+.aps-ob-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aps-border);
+}
+.aps-onboarding .aps-preview + .aps-hint {
+  margin: 8px 0 0;
+}
+
+/* ---- 导览气泡 ---- */
+.aps-coach {
+  position: fixed;
+  inset: 0;
+  z-index: var(--aps-layer-modal);
+  pointer-events: none;
+}
+.aps-coach-ring {
+  position: fixed;
+  box-sizing: border-box;
+  border: 2px solid var(--aps-border-accent);
+  border-radius: 10px;
+}
+.aps-coach-bubble {
+  position: fixed;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--aps-border-accent);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+  box-shadow: var(--aps-shadow);
+  color: var(--aps-text-primary);
+  font-family: var(--aps-font);
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+.aps-coach-text {
+  margin: 0;
+}
+.aps-coach-done {
+  color: var(--aps-text-accent);
+  font-weight: 500;
+}
+.aps-coach-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.aps-coach-foot button.aps-button {
+  height: 26px;
+  font-size: 12px;
+}
+
+/* ---- 设置页自绘块 ---- */
+.aps-settings-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.aps-settings-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.aps-settings-title button.aps-button {
+  font-size: 12px;
+}
+.aps-practice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.aps-practice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.aps-practice-text {
+  flex: 1;
+  min-width: 0;
+}
+.aps-practice-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 50%;
+  color: var(--aps-text-accent);
+  font-size: 12px;
+}
+.aps-practice-mark.is-done {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+}
+.aps-practice-row button.aps-button {
+  font-size: 12px;
+}
+
+/* ---- 繁简通搜：查找条（挂在 PDF 窗格右上角） ---- */
+.aps-find {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: var(--aps-layer-toolbar);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 4px 0 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+  box-shadow: var(--aps-shadow);
+  color: var(--aps-text-primary);
+  font-family: var(--aps-font);
+  font-size: 12px;
+}
+.aps-find input.aps-find-input {
+  width: 160px;
+  height: 24px;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid var(--aps-border);
+  border-radius: 6px;
+  background: var(--aps-surface-1);
+  color: var(--aps-text-primary);
+  font: inherit;
+  box-shadow: none;
+}
+.aps-find input.aps-find-input:focus {
+  border-color: var(--aps-border-accent);
+  outline: none;
+}
+.aps-find-count {
+  min-width: 7em;
+  color: var(--aps-text-muted);
+  white-space: nowrap;
+}
+.aps-find-count.aps-find-miss {
+  color: var(--aps-text-secondary);
+}
+.aps-find .aps-ib {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--aps-text-secondary);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.aps-find .aps-ib:hover:not(:disabled) {
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+.aps-find .aps-ib:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

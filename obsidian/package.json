@@ -1,0 +1,46 @@
+{
+  "name": "aihistory-pdf-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AIhistory PDF Sync: page-anchored Markdown and PDF side by side",
+  "scripts": {
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "lint": "cd .. && eslint -c obsidian/eslint.config.mjs obsidian/src",
+    "check": "tsc --noEmit && npm run lint && vitest run",
+    "test:e2e": "npm run build && wdio run ./wdio.conf.mts"
+  },
+  "devDependencies": {
+    "@codemirror/language": "6.11.3",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@wdio/cli": "^9.31.9",
+    "@wdio/globals": "^9.31.3",
+    "@wdio/local-runner": "^9.31.9",
+    "@wdio/mocha-framework": "^9.31.9",
+    "chai": "^5.3.3",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
+    "jiti": "^2.7.0",
+    "mocha": "^10.8.2",
+    "obsidian": "1.13.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0",
+    "wdio-obsidian-reporter": "^3.2.1",
+    "wdio-obsidian-service": "^3.2.1"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "motion": "14.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

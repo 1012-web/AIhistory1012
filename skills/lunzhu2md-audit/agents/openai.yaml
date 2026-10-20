@@ -1,0 +1,4 @@
+interface:
+  display_name: "lunzhu2md-audit"
+  short_description: "抽检或通读导入后的 Markdown：零花费初筛加按页看图，出带证据的问题清单"
+  default_prompt: "抽检这本书的导入质量："

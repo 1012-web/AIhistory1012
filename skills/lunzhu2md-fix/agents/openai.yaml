@@ -1,0 +1,4 @@
+interface:
+  display_name: "lunzhu2md-fix"
+  short_description: "对照 PDF 原页修订导入后 Markdown 的某一页：补段、补注、改错字，只动本页"
+  default_prompt: "按原页修订这一页："

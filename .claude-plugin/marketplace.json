@@ -1,0 +1,17 @@
+{
+  "name": "aihistory1012",
+  "owner": {
+    "name": "1012-web",
+    "url": "https://github.com/1012-web"
+  },
+  "description": "Turn modern Chinese scholarly PDFs (papers, monographs, textbooks, punctuated editions) into faithful Markdown, then proofread them against the PDF.",
+  "plugins": [
+    {
+      "name": "aihistory1012",
+      "source": "./",
+      "description": "lunzhu2md import, page-level fix and audit skills for PDF-to-Markdown conversion of modern publications.",
+      "category": "productivity",
+      "keywords": ["pdf", "markdown", "mineru", "ocr", "obsidian", "history"]
+    }
+  ]
+}

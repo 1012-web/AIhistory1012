@@ -1,0 +1,45 @@
+/* 插件自己的样式：正文页码标签、当前页底色、PDF 高亮（不属于 ui/ 组件，用 Obsidian 变量） */
+/* ==== 正文 ==== */
+.markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+  background-color: rgba(var(--color-yellow-rgb), 0.09);
+}
+.aps-page-label {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 5px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 0.72em;
+  font-family: var(--font-interface);
+  line-height: 1.5;
+  vertical-align: 0.15em;
+  cursor: pointer;
+}
+.aps-page-label:hover {
+  color: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+/* ==== PDF 高亮 ==== */
+.aps-hl-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.aps-hl {
+  position: absolute;
+  background: rgba(var(--color-orange-rgb), 0.35);
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+.theme-dark .aps-hl {
+  mix-blend-mode: screen;
+}
+
+/* ==== 停靠时窗格里垫的空白（窗格是纵向 flex，不许它被压缩） ==== */
+.aps-toolbar-spacer {
+  flex: none;
+}

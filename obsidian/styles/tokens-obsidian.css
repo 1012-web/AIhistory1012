@@ -1,0 +1,24 @@
+/*
+ * 设计变量 → Obsidian 主题变量（对应表见 design/toolbar-approved.html 页尾）。
+ * ui/ 组件只引用 --aps-*；网页版用 src/ui/tokens-web.css 指向它自己的取值。
+ * 设计稿里的变量名（--surface-1、--text-muted……）有几个与 Obsidian 自带变量同名但含义不同，
+ * 直接同名定义会互相覆盖或成环，所以统一加 aps- 前缀。
+ */
+body {
+  --aps-surface-1: var(--background-modifier-hover);
+  --aps-surface-2: var(--background-primary);
+  --aps-border: var(--background-modifier-border);
+  --aps-border-strong: var(--background-modifier-border-hover, var(--background-modifier-border));
+  --aps-text-primary: var(--text-normal);
+  --aps-text-secondary: var(--text-muted);
+  --aps-text-muted: var(--text-faint);
+  --aps-text-accent: var(--text-accent);
+  --aps-border-accent: var(--interactive-accent);
+  --aps-bg-accent: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+  --aps-shadow: var(--shadow-s);
+  --aps-font: var(--font-interface);
+  --aps-layer-toolbar: var(--layer-popover);
+  --aps-layer-menu: var(--layer-menu);
+  --aps-layer-modal: var(--layer-modal);
+  --aps-cover: var(--background-modifier-cover);
+}

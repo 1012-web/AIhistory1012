@@ -1,0 +1,50 @@
+/*
+ * 网页版的设计变量取值（照 design/toolbar-approved.html 的 :root，亮、暗两套）。
+ * Obsidian 插件不用这个文件，它在 styles/tokens-obsidian.css 里把同一套变量指向主题变量。
+ */
+:root {
+  --aps-surface-1: #f4f3ee;
+  --aps-surface-2: #ffffff;
+  --aps-border: rgba(0, 0, 0, 0.1);
+  --aps-border-strong: rgba(0, 0, 0, 0.18);
+  --aps-text-primary: #1f1e1d;
+  --aps-text-secondary: #5f5e5a;
+  --aps-text-muted: #888780;
+  --aps-text-accent: #185fa5;
+  --aps-bg-accent: #e6f1fb;
+  --aps-border-accent: #378add;
+  --aps-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --aps-font: system-ui, "Microsoft YaHei", sans-serif;
+  --aps-layer-toolbar: 30;
+  --aps-layer-menu: 40;
+  --aps-layer-modal: 50;
+  --aps-cover: rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --aps-surface-1: #262624;
+    --aps-surface-2: #30302e;
+    --aps-border: rgba(255, 255, 255, 0.1);
+    --aps-border-strong: rgba(255, 255, 255, 0.2);
+    --aps-text-primary: #f1efe8;
+    --aps-text-secondary: #b4b2a9;
+    --aps-text-muted: #888780;
+    --aps-text-accent: #85b7eb;
+    --aps-bg-accent: #0c447c;
+    --aps-border-accent: #378add;
+    --aps-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+:root[data-theme="dark"] {
+  --aps-surface-1: #262624;
+  --aps-surface-2: #30302e;
+  --aps-border: rgba(255, 255, 255, 0.1);
+  --aps-border-strong: rgba(255, 255, 255, 0.2);
+  --aps-text-primary: #f1efe8;
+  --aps-text-secondary: #b4b2a9;
+  --aps-text-muted: #888780;
+  --aps-text-accent: #85b7eb;
+  --aps-bg-accent: #0c447c;
+  --aps-border-accent: #378add;
+  --aps-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}

@@ -1,0 +1,25 @@
+{
+  "name": "aihistory1012",
+  "version": "0.1.0",
+  "description": "lunzhu2md import, page-level fix and audit skills for PDF-to-Markdown conversion of modern publications.",
+  "author": {
+    "name": "1012-web",
+    "url": "https://github.com/1012-web"
+  },
+  "homepage": "https://github.com/1012-web/AIhistory1012",
+  "repository": "https://github.com/1012-web/AIhistory1012",
+  "license": "MIT",
+  "keywords": [
+    "pdf",
+    "markdown",
+    "mineru",
+    "ocr",
+    "obsidian",
+    "history"
+  ],
+  "skills": [
+    "./skills/lunzhu2md",
+    "./skills/lunzhu2md-fix",
+    "./skills/lunzhu2md-audit"
+  ]
+}

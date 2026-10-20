@@ -1,0 +1,479 @@
+@import "tailwindcss";
+
+/*
+ * 配色：工具条等 S3 组件只认 --aps-* 设计变量（取值在 S3 的 ui/tokens-web.css，照用户认可的设计稿，亮暗两套）。
+ * 工作台自己的顶栏、编辑器、状态栏也从这套变量取色，与工具条同一套外观；下面只补设计稿里没有的几样。
+ */
+:root {
+  --background-primary: var(--aps-surface-2);
+  --background-secondary: var(--aps-surface-1);
+  --background-modifier-border: var(--aps-border);
+  --background-modifier-hover: var(--aps-surface-1);
+  --text-normal: var(--aps-text-primary);
+  --text-muted: var(--aps-text-secondary);
+  --text-faint: var(--aps-text-muted);
+  --text-accent: var(--aps-text-accent);
+  --interactive-accent: var(--aps-border-accent);
+  --text-on-accent: #fff;
+  --text-warning: #b4560f;
+  --text-error: #b3261e;
+  --text-success: #2f7d4f;
+  --accent: var(--text-accent);
+  --muted: var(--text-muted);
+  --pdf-bg: #e9e8e3;
+  --current-page: rgba(55, 138, 221, 0.07);
+  --current-page-edge: rgba(55, 138, 221, 0.55);
+  --hl: rgba(255, 196, 0, 0.4);
+  --shadow-s: var(--aps-shadow);
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --font-interface: var(--aps-font);
+  --font-text: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --font-ui-smaller: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-warning: #e6a35b;
+    --text-error: #f07b72;
+    --text-success: #7cc79a;
+    --pdf-bg: #1b1b1a;
+    --current-page: rgba(133, 183, 235, 0.07);
+    --current-page-edge: rgba(133, 183, 235, 0.5);
+    --hl: rgba(255, 196, 0, 0.3);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: 14px;
+}
+
+/* ---------- 顶栏、状态栏 ---------- */
+.aih-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  min-height: 44px;
+}
+.aih-title {
+  font-weight: 700;
+  font-family: var(--font-text);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 18em;
+}
+.aih-file-trigger {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+.aih-file-menu {
+  min-width: 260px;
+}
+.aih-menu-label {
+  padding: 6px 10px 2px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.aih-file-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.aih-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-warning);
+}
+.aih-statusbar {
+  display: flex;
+  gap: 18px;
+  padding: 3px 12px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+.aih-ok {
+  color: var(--text-success);
+}
+.aih-warn {
+  color: var(--text-warning);
+}
+.aih-muted,
+.aps-muted {
+  color: var(--text-muted);
+}
+.aih-banner {
+  padding: 6px 12px;
+  background: rgba(230, 120, 40, 0.12);
+  color: var(--text-warning);
+}
+.aih-save {
+  font-size: var(--font-ui-smaller);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.aih-save-dirty,
+.aih-save-saving {
+  color: var(--text-warning);
+}
+.aih-save-error,
+.aih-save-conflict {
+  color: #fff;
+  background: var(--text-error);
+  border-color: var(--text-error);
+  cursor: pointer;
+}
+.aih-separator {
+  width: 5px;
+  background: var(--background-modifier-border);
+  transition: background 0.15s;
+}
+.aih-separator:hover,
+.aih-separator[data-separator="active"] {
+  background: var(--interactive-accent);
+}
+.aih-notices {
+  position: fixed;
+  right: 16px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+  pointer-events: none;
+}
+.aih-notice {
+  max-width: 420px;
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: var(--text-normal);
+  color: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  font-size: 13px;
+}
+
+/* ---------- 搜索 ---------- */
+.aih-search {
+  position: relative;
+  flex: 0 1 380px;
+}
+.aih-search form {
+  position: relative;
+}
+.aih-search-input {
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  outline: none;
+}
+.aih-search-input:focus {
+  border-color: var(--interactive-accent);
+}
+.aih-kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-faint);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.aih-search-results {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(560px, 90vw);
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  padding: 4px;
+}
+.aih-search-summary {
+  padding: 6px 8px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.aih-search-hit {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 2px 8px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 0;
+  background: transparent;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+.aih-search-hit[aria-selected="true"] {
+  background: var(--background-modifier-hover);
+}
+.aih-hit-text {
+  font-family: var(--font-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aih-hit-text mark {
+  background: var(--hl);
+  color: inherit;
+}
+.aih-hit-page {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.aih-hit-file {
+  grid-column: 3;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.aih-badge {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 4px;
+  align-self: center;
+}
+.aih-badge-md {
+  background: rgba(155, 90, 42, 0.14);
+  color: var(--text-accent);
+}
+.aih-badge-pdf {
+  background: rgba(60, 110, 160, 0.14);
+  color: #3f6f9f;
+}
+
+/* ---------- 编辑器 ---------- */
+.aih-editor .cm-editor {
+  height: 100%;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+.aih-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.aih-editor .cm-scroller {
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.85;
+}
+.aih-editor .cm-content {
+  max-width: 46em;
+  margin: 0 auto;
+  padding: 24px 28px 45vh;
+}
+.aih-editor .cm-activeLine {
+  background: transparent;
+}
+.aih-editor .cm-line.aih-current-page {
+  background: var(--current-page);
+  box-shadow: inset 3px 0 0 var(--current-page-edge);
+}
+.aih-editor .aih-current-page-text {
+  background: var(--current-page);
+}
+.aih-editor .cm-selectionBackground,
+.aih-editor .cm-focused .cm-selectionBackground {
+  background: rgba(155, 90, 42, 0.22) !important;
+}
+.aih-page-label {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 6px;
+  font-family: var(--font-interface);
+  font-size: 11px;
+  line-height: 1.6;
+  vertical-align: 0.15em;
+  color: var(--text-accent);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  opacity: 0.7;
+  cursor: pointer;
+  user-select: none;
+}
+.aih-page-label:hover {
+  opacity: 1;
+  background: var(--background-modifier-hover);
+}
+.aih-suspect-link {
+  color: var(--text-accent);
+  text-decoration: underline dotted;
+}
+.cm-panels {
+  background: var(--background-secondary) !important;
+  color: var(--text-normal) !important;
+}
+
+/* ---------- PDF ---------- */
+.aih-pdf-container .pdfViewer .page {
+  box-shadow: var(--shadow-s);
+  border: 0;
+  margin: 12px auto;
+}
+.aih-hl-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.aih-hl {
+  position: absolute;
+  background: var(--hl);
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+@media (prefers-color-scheme: dark) {
+  .aih-hl {
+    mix-blend-mode: normal;
+  }
+}
+
+/* ---------- 顶栏按钮（对话框里的按钮用 S3 的 .aps-button） ---------- */
+.aih-button {
+  padding: 4px 12px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.aih-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.aih-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 冲突对话框 */
+.aih-conflict {
+  width: min(1100px, calc(100vw - 32px));
+}
+.aih-dialog-text {
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+.aih-merge-heads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  padding: 0 4px 4px;
+}
+.aih-merge {
+  max-height: 55vh;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  font-family: var(--font-text);
+}
+.aih-merge .cm-editor {
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+/* ---------- 设置页（组件样式来自 S3 的 ui.css，这里只排网页自己的外框与几样网页特有的控件） ---------- */
+.aih-settings {
+  width: min(640px, calc(100vw - 32px));
+  /* S3 的对话框从窗口上部往下排，留出上下的空 */
+  max-height: calc(100vh - 160px);
+  overflow: auto;
+}
+.aih-settings-group {
+  margin-top: 16px;
+}
+.aih-settings-group-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--aps-text-secondary);
+}
+.aih-inline-hint {
+  display: inline;
+}
+.aih-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.aih-range input[type="range"] {
+  flex: 0 1 220px;
+  accent-color: var(--aps-text-accent);
+}
+.aih-range-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 3em;
+}
+.aih-port-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.aih-port-input {
+  width: 6em;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+  color: var(--aps-text-primary);
+  font: inherit;
+}
+.aih-port-message {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--aps-text-accent);
+}
+.aih-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.aih-explain-text {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--aps-text-secondary);
+}

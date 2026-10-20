@@ -1,0 +1,60 @@
+name: Release Obsidian plugin
+
+# 推一个与 manifest.json 版本号相同的标签（不带 v，如 0.1.0）就构建并建一个草稿 Release，
+# 附件是 Obsidian 要的三个文件。插件源码在 obsidian/，清单在仓库根目录。
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        working-directory: obsidian
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+          cache-dependency-path: obsidian/package-lock.json
+
+      - name: Build plugin
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check the tag matches the manifest version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version=$(node -p "require('../manifest.json').version")
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $tag does not match manifest version $version" >&2
+            exit 1
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            obsidian/dist/main.js
+            obsidian/dist/manifest.json
+            obsidian/dist/styles.css
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" \
+            --title="$tag" \
+            --draft \
+            dist/main.js dist/manifest.json dist/styles.css

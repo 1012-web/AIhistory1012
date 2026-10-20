@@ -1,0 +1,5 @@
+# 各平台一律检出为 LF，跨平台换行一致
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
