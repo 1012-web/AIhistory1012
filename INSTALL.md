@@ -88,7 +88,7 @@ python -m pip install pymupdf pypdf PyYAML rapidfuzz
 
 用户很可能不懂 AI、没注册过 MinerU。**照 `references/get-token.md` 带**（装好后在 `<技能目录>/lunzhu2md/references/get-token.md`；在本仓库里是 `skills/lunzhu2md/references/get-token.md`）：
 
-- 一次只给一步，等他说"好了"再给下一步；
+- 默认**一条消息说完**四步（别一步一问，那样要六个来回）；
 - 卡住就让他截图，按图指位置，别硬背文档里的按钮名；
 - **不要索取令牌字符串**，让他自己在终端粘贴（屏幕不显示）。
 

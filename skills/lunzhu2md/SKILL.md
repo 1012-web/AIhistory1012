@@ -45,7 +45,7 @@ description: 把现代出版物的 PDF（期刊论文、研究专著、教材、
 
 **问档位之前先查凭据**：跑 `paddle_api.py status`（不联网，退出码 3 = 未配）。用户想选 ① ③ 而令牌没配时，把它和档位放进**同一次提问**：
 
-- 现在就配：按 [references/get-token.md](references/get-token.md) **一步步带他拿**（一次只给一步、卡住让他截图、令牌不进聊天）→ 配好再开工；
+- 现在就配：按 [references/get-token.md](references/get-token.md) **发一条消息带他拿**（默认一次说完，卡住才拆步、才要截图；令牌不进聊天）→ 配好再开工；
 - 退档 ②（只用 MinerU），报告写明「无第二读者覆盖」；
 - 先做结构重建，档位待定。
 
