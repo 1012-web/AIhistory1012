@@ -37,7 +37,17 @@ SKILLS_DIR = ROOT / "skills"
 VAULT_TEMPLATE = ROOT / "vault-template"
 PLUGIN_ID = "aihistory-pdf-sync"
 PLUGIN_FILES = ("main.js", "manifest.json", "styles.css")
+PLUGIN_URL = "https://github.com/1012-web/AIhistory1012/releases/latest/download/"
 DEPS = ("pymupdf", "pypdf", "yaml", "rapidfuzz")
+
+MANUAL_HINT = """\
+脚本没办成的事，手工做一样可以（不用再试脚本）：
+  1. 拿到仓库：git clone https://github.com/1012-web/AIhistory1012
+  2. 把 skills/ 下的三个目录（lunzhu2md、lunzhu2md-fix、lunzhu2md-audit）
+     整个复制到你所用 agent 的技能目录（不知道在哪就问用户，别猜）。
+  3. 校验：python <技能目录>/lunzhu2md/scripts/pdf_preflight.py --help
+  4. 配令牌：python <技能目录>/lunzhu2md/scripts/mineru_api.py configure（用户自己跑）
+"""
 
 # 已知平台的技能目录。探测不到时不要猜，交给用户/agent。
 PLATFORMS = {
@@ -268,6 +278,14 @@ def make_vault(args) -> int:
                 shutil.copyfile(pdir / f, dst / f)
             say(f"  插件已放进 .obsidian/plugins/{PLUGIN_ID}/")
             installed_plugin = True
+    elif not args.no_plugin:
+        ok, why = download_plugin(obs / "plugins" / PLUGIN_ID)
+        if ok:
+            say(f"  插件已从 Release 下载到 .obsidian/plugins/{PLUGIN_ID}/")
+            installed_plugin = True
+        else:
+            say(f"  ! 插件没下成（{why}）——手工补：从 Releases 下 main.js / manifest.json / styles.css，")
+            say(f"    放进 .obsidian/plugins/{PLUGIN_ID}/，或用 --plugin-dir <目录> 重跑")
 
     plugins_json = obs / "community-plugins.json"
     ids = []
@@ -280,14 +298,36 @@ def make_vault(args) -> int:
         ids.append(PLUGIN_ID)
         plugins_json.write_text(json.dumps(ids, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    say("\n下一步：")
-    say(f"  1. 打开库：obsidian://open?vault={name}")
+    say("\n下一步（在对话里带用户做，不要只丢一条命令）：")
+    say(f"  1. 库在这里：{vault}")
+    say("  2. 问用户装没装 Obsidian；没有就把安装命令给他（见 INSTALL.md），别自己装")
+    say("  3. 打开 Obsidian → 左下角的库切换（vault switcher）→「打开文件夹作为库」→ 选上面的路径")
+    say(f"     （如果这个库已经注册过，也可以直接点 obsidian://open?vault={name}）")
+    say("  4. 首次打开若提示「限制模式 / 是否信任此库」：让用户选信任，再启用社区插件（这步只能人点）")
+    say("  5. 把 PDF 和导入好的书文件夹放进去，打开 01-正文.md，左边 PDF、右边正文")
     if not installed_plugin:
-        say("     （还没装插件：下载 Release 里的 main.js / manifest.json / styles.css，")
-        say("      放进 .obsidian/plugins/aihistory-pdf-sync/，或用 --plugin-dir <目录> 重跑）")
-    say("  2. 首次打开若提示「限制模式 / 是否信任此库」，选信任并启用社区插件（这步只能人工点一次）")
-    say("  3. 把 PDF 和导入好的书文件夹放进去，打开 01-正文.md 即可左右对照")
+        say("")
+        say("  ⚠ 插件没装上：库能打开、能读，但没有左右对照。按第 3 段手工补三个文件，")
+        say("    或联网后重跑：python install.py --make-vault <库路径> --force")
     return 0
+
+
+def download_plugin(dest: Path) -> tuple[bool, str]:
+    """从 GitHub Release 的稳定地址取插件三件套；失败只返回原因，不抛异常。"""
+    import urllib.request
+
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        for name in PLUGIN_FILES:
+            with urllib.request.urlopen(PLUGIN_URL + name, timeout=30) as resp:
+                blob = resp.read()
+            if not blob:
+                return False, f"{name} 是空文件"
+            (dest / name).write_bytes(blob)
+        version = json.loads((dest / "manifest.json").read_text(encoding="utf-8")).get("version", "?")
+        return True, version
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{type(exc).__name__}: {exc}"
 
 
 def _copy_merge(src: Path, dst: Path, label: str = "") -> None:
@@ -318,11 +358,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="只说做什么，不写盘")
     ap.add_argument("--no-verify", action="store_true")
     ap.add_argument("--list", action="store_true", help="列出探测到的平台")
+    ap.add_argument("--manual", action="store_true", help="只打印手工安装步骤")
     ap.add_argument("--uninstall", action="store_true")
     ap.add_argument("--yes", action="store_true", help="卸装时确认")
     ap.add_argument("--make-vault", metavar="DIR", help="建一个 Obsidian 库（不需要 Obsidian 在场）")
     ap.add_argument("--vault-name", help="库名（默认取文件夹名）")
     ap.add_argument("--plugin-dir", help="含 main.js/manifest.json/styles.css 的目录")
+    ap.add_argument("--no-plugin", action="store_true", help="建库时不下载插件")
     ap.add_argument("--force", action="store_true", help="已存在的库只补骨架，不覆盖笔记")
     ap.add_argument("--keep-skill-dir-var", action="store_true",
                     help=f"保留 {SKILL_DIR_TOKEN}，不换成本机路径（给会自己替换的平台用）")
@@ -330,6 +372,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list:
         return cmd_list()
+    if args.manual:
+        say(MANUAL_HINT)
+        return 0
     if args.uninstall:
         return uninstall(args)
     if args.make_vault:
@@ -338,4 +383,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as exc:  # noqa: BLE001
+        err(f"安装器出错：{type(exc).__name__}: {exc}")
+        err("")
+        err(MANUAL_HINT)
+        sys.exit(3)
