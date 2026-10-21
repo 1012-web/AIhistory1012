@@ -38,6 +38,19 @@
 
 ## 安装
 
+### 任何 agent：读 INSTALL.md 自己装
+
+把仓库链接丢给 Claude Code、Codex、DSH 或别的 agent，说一句「读 INSTALL.md，按里面装」即可。也可以自己跑：
+
+```bash
+git clone https://github.com/1012-web/AIhistory1012 && cd AIhistory1012
+python install.py --list     # 探测平台，只读不写
+python install.py            # 装（探测到多个平台时用 --platform / --target 指定）
+python install.py --make-vault <库路径> --plugin-dir <插件目录>   # 可选：建一个 Obsidian 库
+```
+
+`install.py` 只用标准库；装完会把 `SKILL_DIR` 占位符换成本机路径，非 Claude Code 平台不必再手改。三种 skill 自包含，单独拷一个目录也能用。细节与失败处理见 [INSTALL.md](INSTALL.md)。
+
 ### 三个 skill（Claude Code）
 
 ```text

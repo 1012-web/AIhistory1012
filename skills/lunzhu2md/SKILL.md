@@ -7,7 +7,7 @@ description: 把现代出版物的 PDF（期刊论文、研究专著、教材、
 
 目标：正文可核对、可检索、可引用。导入只做一次：MinerU（+ PaddleOCR）重建出 Markdown 之后，修改都在 Markdown 里做，不再回头改识别结果的 JSON。
 
-锚点、frontmatter `pdf`、书文件夹、`book.json`、疑字清单链接的格式只以插件仓库的 [docs/anchors.md](../../docs/anchors.md) 为准；Obsidian 插件 AIhistory PDF Sync 靠它配对、翻页。
+锚点、frontmatter `pdf`、书文件夹、`book.json`、疑字清单链接的格式只以 [references/anchors.md](references/anchors.md) 为准（仓库 `docs/anchors.md` 是同一份，改时两边同步）；Obsidian 插件 AIhistory PDF Sync 靠它配对、翻页。
 
 命令一律在 PowerShell 里跑，写作 `python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/<脚本>.py`。`${CLAUDE_SKILL_DIR}` 指本 SKILL.md 所在的目录：Claude Code 会自动替换；在 Codex 等别的平台上没被替换时，自己代入本文件所在目录的绝对路径（references 里的命令同理）。脚本 stdout 只打 ASCII 状态行，详细报告写进 `<书>/_数据/过程报告/`，用 Read 工具读。
 
@@ -16,12 +16,12 @@ description: 把现代出版物的 PDF（期刊论文、研究专著、教材、
 - **脚本只做确定的机械活**：解析 MinerU、PaddleOCR 的结果，写锚点，校验，渲染页图，写文字层，按你给的裁决改字。遇到异常只报告，不自行改内容。
 - **内容上的判断由你来做**：补不补、接不接、用哪份字、怎么改。把脚本的报告当证据、不当结论：对照原页图决定，并在校注里写明理由。拿不准就问用户，不猜。
 - **不为少见情况往脚本里加自动修补规则**。碰到新情况，在对话里处理、写进校注，需要时向用户提出改流程。
-- **能自动的只有三类半**：窄口径半全角（先定凡例，`punct_width.py`）、分卷纯拼接（`merge_skeletons.py`）、MinerU 明确标注的跨页合并（`build.py` 插锚点），以及用户确认过凡例后的标题级应用——这半类**尚未实现，由你按凡例手工做**，脚本只给建议。凡例确认后记进 `_数据/book.json` 的 `conventions`（格式见 [docs/anchors.md](../../docs/anchors.md) 第五节）。其余——推断的断段、期刊信息、疑误读页码、OCR 补空行——只报告。
+- **能自动的只有三类半**：窄口径半全角（先定凡例，`punct_width.py`）、分卷纯拼接（`merge_skeletons.py`）、MinerU 明确标注的跨页合并（`build.py` 插锚点），以及用户确认过凡例后的标题级应用——这半类**尚未实现，由你按凡例手工做**，脚本只给建议。凡例确认后记进 `_数据/book.json` 的 `conventions`（格式见 [references/anchors.md](references/anchors.md) 第五节）。其余——推断的断段、期刊信息、疑误读页码、OCR 补空行——只报告。
 - **拿得准但会改结构的（黄区）**：不改正文，打 `<!--?…-->` 标记写明打算怎么改，列进交付报告的「未判疑问」，等用户确认。
 - **用户不在场或说“按推荐先做”**：只做点名范围内的最小改动；同页其他问题、跨页、标题层级另列，不顺手改。推荐不是授权。
 - **每条内容改动都要有证据**：页码锚点 + 原图上的细节。指不出，就是没看原页。
 
-全文见 [../../docs/division-of-labor.md](../../docs/division-of-labor.md)。
+全文见 [references/division-of-labor.md](references/division-of-labor.md)。
 
 **怎么读报告**：每一步的报告（`_数据/过程报告/` 下的构建报告、合并报告，`_数据/文字层/文字层报告.md`，`_数据/冲突清单/冲突清单.md`）都分两类：脚本已经做了的机械活（抽查几处即可），和「交 AI 定」的候选（逐条处理）。候选处理完才往下走。
 

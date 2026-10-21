@@ -23,6 +23,8 @@ images/
 !web/*.json
 !tests/fixtures/**
 tests/fixtures/**/*.pdf
+# 例外：随仓库分发的 Obsidian 库骨架（这些 .json 是配置，不是文献数据）
+!vault-template/.obsidian/*.json
 # 例外：公版演示书《新史學》的排印本（维基文库，CC BY-SA 4.0），测试用
 !tests/fixtures/新史學.pdf
 # 上面的 ! 把 fixtures 下的一切又放了回来，Python 缓存要再排除一次

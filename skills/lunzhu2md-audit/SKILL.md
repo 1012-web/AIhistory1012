@@ -11,7 +11,7 @@ description: 抽检或通读 lunzhu2md 导入的 Markdown 成品，对照 PDF �
 取某页正文用 fix 的工具：`python -X utf8 ${CLAUDE_SKILL_DIR}/../lunzhu2md-fix/scripts/page_tool.py extract "<书>" --page N --numbered`。
 参考文件：`references/issue-taxonomy.md`（问题分类）、`references/subagent-prompts.md`（子代理提示词）、`references/report-format.md`（输出格式）。
 
-`<书>` 是书文件夹，或单个 `.md`。正文应带 `<!--pdf-page.N-->` 物理页锚点（约定见仓库 `docs/anchors.md`）。只有 `<!--p.M-->` 的旧成品：`_数据/book.json` 有 `printedPageOffset` 时脚本按「物理页 = 印刷页 + 偏移」换算照常跑（报告里注明「旧格式」，旧锚点常放在段首而非接缝处，按页的检查会有偏差）；没有偏移就告诉用户先用插件的「补页码锚点」补上，本 skill 不补。
+`<书>` 是书文件夹，或单个 `.md`。正文应带 `<!--pdf-page.N-->` 物理页锚点（约定见 `../lunzhu2md/references/anchors.md`）。只有 `<!--p.M-->` 的旧成品：`_数据/book.json` 有 `printedPageOffset` 时脚本按「物理页 = 印刷页 + 偏移」换算照常跑（报告里注明「旧格式」，旧锚点常放在段首而非接缝处，按页的检查会有偏差）；没有偏移就告诉用户先用插件的「补页码锚点」补上，本 skill 不补。
 
 ## 分工：脚本做机械活，判断归你
 

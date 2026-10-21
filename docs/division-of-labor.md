@@ -88,4 +88,4 @@
 - 脚本可以做**机械检测**（长段拉丁文、锚点缺页、脚注数不对、括号不成对），但检测到不等于知道怎么修。
 - 新情况先在对话里处理；反复出现、且能写成确定规则的，才进脚本。不要为一次少见情况加自动修补。
 
-具体到三个 skill：导入见 [lunzhu2md/SKILL.md](../skills/lunzhu2md/SKILL.md) 第〇节；按页修订见 [lunzhu2md-fix/SKILL.md](../skills/lunzhu2md-fix/SKILL.md)；抽检见 [lunzhu2md-audit/SKILL.md](../skills/lunzhu2md-audit/SKILL.md)。
+具体到三个 skill：导入见 [lunzhu2md/SKILL.md](https://github.com/1012-web/AIhistory1012/blob/main/skills/lunzhu2md/SKILL.md) 第〇节；按页修订见 [lunzhu2md-fix/SKILL.md](https://github.com/1012-web/AIhistory1012/blob/main/skills/lunzhu2md-fix/SKILL.md)；抽检见 [lunzhu2md-audit/SKILL.md](https://github.com/1012-web/AIhistory1012/blob/main/skills/lunzhu2md-audit/SKILL.md)。

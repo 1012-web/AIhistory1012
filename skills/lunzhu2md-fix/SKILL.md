@@ -8,7 +8,7 @@ description: 按 PDF 原页修订 lunzhu2md 导入的 Markdown：对照原页补
 导入后的正文只改 Markdown。本 skill 一次只修一页：以 PDF 原页为准，把这页的正文与脚注改对，别的页一个字不碰。
 
 工具脚本：`python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/page_tool.py <子命令> …`（下文简写 `page_tool`）。`${CLAUDE_SKILL_DIR}` 指本 SKILL.md 所在的目录：Claude Code 会自动替换；在 Codex 等别的平台上没被替换时，自己代入本文件所在目录的绝对路径。
-锚点约定见仓库 `docs/anchors.md`，要点：
+锚点约定见 `../lunzhu2md/references/anchors.md`，要点：
 
 - `<!--pdf-page.N-->`：PDF 第 N 页（从 1 起）内容的起点，段落跨页时插在段中接缝处；
 - `<!--p.M-->`：原书印刷页，紧跟物理页锚点；

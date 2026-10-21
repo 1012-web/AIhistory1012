@@ -30,7 +30,7 @@ source: MinerU（layout.json 重建）
 ---
 ```
 
-`pdf` 是插件配对 PDF 的依据（约定见仓库 `docs/anchors.md`），**每个文件都要有**，`split_book.py` 自动写；值必须加引号。
+`pdf` 是插件配对 PDF 的依据（约定见 `anchors.md`），**每个文件都要有**，`split_book.py` 自动写；值必须加引号。
 指向原件，或导入时做的文字层副本 `<原件>.文字层.pdf`。
 
 ### 图书正文（一本书一份，`split_book.py` 生成）

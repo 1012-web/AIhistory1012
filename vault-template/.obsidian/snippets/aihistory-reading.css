@@ -1,0 +1,88 @@
+/* AIhistory 阅读样式（CSS snippet）
+   目标：中文书稿读起来像书，不像代码仓库。
+   开关：设置 → 外观 → CSS 代码片段 → aihistory-reading
+   只调版式，不改颜色主题；觉得哪里太强就把对应块注释掉。 */
+
+body {
+  --file-line-width: 42rem;      /* 正文行宽，约 34 个汉字一行 */
+  --font-text-size: 17px;
+  --line-height-normal: 1.8;
+  --p-spacing: 1.15rem;          /* 段间留白 */
+  --heading-spacing: 2.2rem;
+}
+
+/* 正文：行高、字距；宋体更接近纸书，不想换字体就把 font-family 那行去掉 */
+.markdown-preview-view,
+.markdown-source-view.mod-cm6 .cm-content {
+  line-height: var(--line-height-normal);
+  letter-spacing: 0.01em;
+  font-family: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "SimSun", serif;
+}
+
+/* 首行缩进：中文书的习惯。不喜欢就整块删掉 */
+.markdown-preview-view p {
+  text-indent: 2em;
+}
+.markdown-preview-view li p,
+.markdown-preview-view blockquote p,
+.markdown-preview-view td p,
+.markdown-preview-view .callout p,
+.markdown-preview-view .footnotes p {
+  text-indent: 0;
+}
+
+/* 章题：居中、上下留白重一点，和节题拉开距离 */
+.markdown-preview-view h1,
+.markdown-source-view.mod-cm6 .cm-line.HyperMD-header-1 {
+  text-align: center;
+  margin-top: 3rem;
+  margin-bottom: 2.2rem;
+  letter-spacing: 0.08em;
+}
+.markdown-preview-view h2 {
+  margin-top: 2.4rem;
+}
+
+/* 引文：左细线 + 稍小字号，不用重底色 */
+.markdown-preview-view blockquote {
+  border-left: 2px solid var(--background-modifier-border);
+  padding-left: 1rem;
+  color: var(--text-muted);
+  font-size: 0.97em;
+}
+
+/* 表格：细线、表头淡底，适合数据表 */
+.markdown-preview-view table {
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+.markdown-preview-view th,
+.markdown-preview-view td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 0.35em 0.6em;
+}
+.markdown-preview-view th {
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+
+/* 脚注：缩小字号，和正文区分开 */
+.markdown-preview-view .footnotes {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+}
+
+/* 页码锚点（HTML 注释）在阅读视图里本来就不可见，这里只是保险 */
+.markdown-preview-view .comment {
+  display: none;
+}
+
+/* 图片：居中、限高，避免整页图把阅读节奏打断 */
+.markdown-preview-view img {
+  display: block;
+  margin: 1.5rem auto;
+  max-height: 70vh;
+}
