@@ -1,9 +1,9 @@
 {
   "id": "aihistory-pdf-sync",
-  "name": "AIhistory PDF Sync",
-  "version": "0.1.0",
+  "name": "PDF Sync Markdown",
+  "version": "0.1.1",
   "minAppVersion": "1.13.7",
-  "description": "Read a page-anchored Markdown transcription beside its source PDF: the PDF follows your reading, highlights selected text, and helps you correct page by page.",
+  "description": "Keep a page-anchored Markdown transcription in sync with its source PDF: the PDF follows your reading, highlights the selected text, and lets you correct page by page.",
   "author": "SheChuOvO",
   "isDesktopOnly": true
 }

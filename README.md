@@ -7,7 +7,7 @@
 | 东西 | 干什么 | 给谁用 |
 |---|---|---|
 | **三个 Claude skill**（Claude Code 插件 `aihistory1012`） | `lunzhu2md` 导入；`lunzhu2md-fix` 按原页修订；`lunzhu2md-audit` 抽检通读 | 所有人；在 Claude Code（或 Codex）对话里用 |
-| **Obsidian 插件 `aihistory-pdf-sync`**（AIhistory PDF Sync） | 左 PDF、右正文对照，按页跟随，选字逐字高亮，按页校改 | 用 Obsidian 的人 |
+| **Obsidian 插件 `aihistory-pdf-sync`**（PDF Sync Markdown） | 左 PDF、右正文对照，按页跟随，选字逐字高亮，按页校改 | 用 Obsidian 的人 |
 | **网页工作台**（`web/`） | 同样的对照阅读与校改，在本机浏览器里打开一本书的文件夹 | 不用 Obsidian 的人 |
 
 三样东西只靠一套约定连着：正文里的物理页锚点 `<!--pdf-page.N-->`（PDF 第 N 页的起点）、印刷页锚点 `<!--p.M-->`、frontmatter（文件开头的属性区）里的 `pdf: "[[原件.pdf]]"`，以及 `_数据/book.json`。约定全文见 [docs/anchors.md](docs/anchors.md)。阅读工具不识字、不改内容；改内容的是对话里的 AI，脚本只是它的工具。
@@ -55,7 +55,7 @@ python -m pip install pymupdf pypdf PyYAML rapidfuzz
 
 ### Obsidian 插件
 
-尚未上架社区插件市场。手动安装：从 Releases 下载 `main.js`、`manifest.json`、`styles.css`，放进库里的 `.obsidian/plugins/aihistory-pdf-sync/`，在「设置 → 第三方插件」里启用。也可以自己构建：
+正在提交 Obsidian 社区插件市场；上架前先手动安装：从 Releases 下载 `main.js`、`manifest.json`、`styles.css`，放进库里的 `.obsidian/plugins/aihistory-pdf-sync/`，在「设置 → 第三方插件」里启用。也可以自己构建：
 
 ```bash
 cd obsidian
