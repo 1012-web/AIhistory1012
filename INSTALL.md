@@ -84,7 +84,7 @@ python <技能目录>/lunzhu2md-fix/scripts/page_tool.py --help
 python -m pip install pymupdf pypdf PyYAML rapidfuzz
 ```
 
-## 五、令牌（用户自己跑，你要一步步带）
+## 五、令牌（用户自己跑，你一条消息说清）
 
 用户很可能不懂 AI、没注册过 MinerU。**照 `references/get-token.md` 带**（装好后在 `<技能目录>/lunzhu2md/references/get-token.md`；在本仓库里是 `skills/lunzhu2md/references/get-token.md`）：
 
@@ -114,7 +114,7 @@ python <技能目录>/lunzhu2md/scripts/mineru_v1.py usage         # 能打出�
 python install.py --make-vault <库路径>
 ```
 
-脚本会建好 `.obsidian/` 骨架、下载插件、装好阅读样式。然后**在对话里一步步带用户走**：
+脚本会建好 `.obsidian/` 骨架、下载插件、装好阅读样式。然后把下面几步**一次说清**（卡住再拆）：
 
 1. 「库建在 `<路径>`。」
 2. 「打开 Obsidian，点左下角的库切换图标（vault switcher）→『打开文件夹作为库』→ 选这个路径。」
