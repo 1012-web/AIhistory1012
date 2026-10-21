@@ -11,6 +11,7 @@
 
 用法：
   python paddle_api.py configure                                   # 隐藏输入，存一次令牌
+  python paddle_api.py status                                      # 有没有配好（不联网，退出码 3=未配）
   python paddle_api.py submit 书.pdf -o <书>/_数据/PaddleOCR [--pages 1-497] [--model PaddleOCR-VL-1.6]
   python paddle_api.py check-models [--force]                      # 看有没有更新的模型（最多每 30 天一次）
 stdout 只打 ASCII 行。
@@ -342,10 +343,23 @@ def current_model(explicit: str | None) -> str:
     return explicit or read_json(settings_path(), {}).get("model") or DEFAULT_MODEL
 
 
+def token_source(token_file: Path | None) -> str:
+    """令牌从哪来：token-file / env / local-config；没有就返回空串。不读网络、不打印令牌。"""
+    if token_file and token_file.is_file():
+        return "token-file"
+    if os.environ.get(TOKEN_ENV, "").strip():
+        return "env"
+    if read_json(settings_path(), {}).get("token"):
+        return "local-config"
+    return ""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("configure", help="store the access token locally (hidden input)")
+    st = sub.add_parser("status", help="report whether a token is configured (no network)")
+    st.add_argument("--token-file", type=Path)
     s = sub.add_parser("submit", help="parse a PDF and write one pNNNN.json per page")
     s.add_argument("pdf", type=Path)
     s.add_argument("-o", "--out", type=Path, required=True)
@@ -384,6 +398,12 @@ def main() -> int:
         if args.command == "configure":
             store_token(getpass.getpass("PaddleOCR access token (input hidden): "))
             print("CONFIGURED")
+        elif args.command == "status":
+            src = token_source(args.token_file)
+            if not src:
+                print("NOT_CONFIGURED hint=\"python paddle_api.py configure\"")
+                return 3
+            print(f"CONFIGURED source={src} model={current_model(None)}")
         elif args.command == "submit":
             summary = run_submit(args.pdf, args.out, args.pages, current_model(args.model),
                                  load_token(args.token_file), args.interval, args.timeout)
