@@ -84,15 +84,25 @@ python <技能目录>/lunzhu2md-fix/scripts/page_tool.py --help
 python -m pip install pymupdf pypdf PyYAML rapidfuzz
 ```
 
-## 五、令牌（用户自己跑，你不要代填）
+## 五、令牌（用户自己跑，你要一步步带）
+
+用户很可能不懂 AI、没注册过 MinerU。**照 `references/get-token.md` 带**（装好后在 `<技能目录>/lunzhu2md/references/get-token.md`；在本仓库里是 `skills/lunzhu2md/references/get-token.md`）：
+
+- 一次只给一步，等他说"好了"再给下一步；
+- 卡住就让他截图，按图指位置，别硬背文档里的按钮名；
+- **不要索取令牌字符串**，让他自己在终端粘贴（屏幕不显示）。
 
 ```bash
-python <技能目录>/lunzhu2md/scripts/mineru_api.py configure
+python <技能目录>/lunzhu2md/scripts/mineru_api.py configure   # 看到 CONFIGURED 才算完
 ```
 
-告诉用户：「这条命令隐藏输入，令牌存在本机，不会进仓库、不进聊天记录。」你**不要**索取令牌字符串。
+验证由你来做（别让用户判断）：
 
-可选：`paddle_api.py configure`（第二家识别，用于交叉核对；没有也能导入）。
+```bash
+python <技能目录>/lunzhu2md/scripts/mineru_v1.py usage         # 能打出用量=令牌有效
+```
+
+可选：`paddle_api.py configure`（第二家识别，用于交叉核对；没有也能导入，报告会写「无第二读者覆盖」）。
 
 ## 六、Obsidian：带着用户点，别只丢命令
 

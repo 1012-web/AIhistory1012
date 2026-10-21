@@ -45,7 +45,7 @@ description: 把现代出版物的 PDF（期刊论文、研究专著、教材、
 
 **问档位之前先查凭据**：跑 `paddle_api.py status`（不联网，退出码 3 = 未配）。用户想选 ① ③ 而令牌没配时，把它和档位放进**同一次提问**：
 
-- 现在就配（我给命令，用户在本机跑 `paddle_api.py configure`，一分钟）→ 配好再开工；
+- 现在就配：按 [references/get-token.md](references/get-token.md) **一步步带他拿**（一次只给一步、卡住让他截图、令牌不进聊天）→ 配好再开工；
 - 退档 ②（只用 MinerU），报告写明「无第二读者覆盖」；
 - 先做结构重建，档位待定。
 
@@ -213,7 +213,7 @@ python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/diff_report.py <书>/_数据/MinerU/<
 
 ## 五、服务、凭据与交付
 
-**服务与凭据**：PDF 会上传到 MinerU（及档 ① ③ 的 PaddleOCR／百度）服务器；只向本次任务已授权的服务上传，用缓存完成的不上传，未刊稿、有保密顾虑的材料先问。密钥不贴进聊天、不写进仓库、不进命令行参数；缺凭据时让用户本机跑对应脚本的 `configure`。第二家的令牌状态用 `paddle_api.py status` 查（开工时就查，见第一节），配法、配额、失败处理见 [references/paddleocr.md](references/paddleocr.md)。
+**服务与凭据**：PDF 会上传到 MinerU（及档 ① ③ 的 PaddleOCR／百度）服务器；只向本次任务已授权的服务上传，用缓存完成的不上传，未刊稿、有保密顾虑的材料先问。密钥不贴进聊天、不写进仓库、不进命令行参数；缺凭据时让用户本机跑对应脚本的 `configure`。第二家的令牌状态用 `paddle_api.py status` 查（开工时就查，见第一节），配法、配额、失败处理见 [references/paddleocr.md](references/paddleocr.md)；**带用户拿令牌的话术见 [references/get-token.md](references/get-token.md)**（用户不懂 AI 也照此走，MinerU 必配、PaddleOCR 可选）。
 
 **不擅自删除**下载文件、原始结果、备份、过程报告或用户资料。
 
