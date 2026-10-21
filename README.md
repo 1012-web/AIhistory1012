@@ -51,6 +51,8 @@ python install.py --make-vault <库路径>   # 可选：建一个 Obsidian 库�
 
 `install.py` 只用标准库；装完会把 `SKILL_DIR` 占位符换成本机路径，非 Claude Code 平台不必再手改。三种 skill 自包含，单独拷一个目录也能用。细节与失败处理见 [INSTALL.md](INSTALL.md)。
 
+MinerU 账号是唯一需要人做的事：有账号的话，在对话里说一声，agent 会给你一条隐藏输入的命令；没有账号就说「我没注册过」，它会给你三步注册引导（`skills/lunzhu2md/references/get-token.md`）。
+
 ### 三个 skill（Claude Code）
 
 ```text
