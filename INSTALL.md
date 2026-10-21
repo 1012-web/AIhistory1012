@@ -19,21 +19,33 @@
 
 你自己的平台你最清楚。拿不准就问一句「你的 skills 目录在哪」，比装错地方再清理省事得多。
 
-## 二、安装（手工版，任何平台都一样）
+## 二、安装：要的是三个目录，不是一份仓库
+
+目标只有一个：`lunzhu2md`、`lunzhu2md-fix`、`lunzhu2md-audit` 三个目录出现在技能目录里。源从哪来你定——clone、下 zip、下 tarball 都行，**用完把临时的源删掉**，别在用户机器上留一份没用的仓库副本（除非用户想留着以后 `git pull` 更新）。
+
+**A. 临时目录，装完就删（推荐）**
 
 ```bash
-git clone https://github.com/1012-web/AIhistory1012
-cp -r AIhistory1012/skills/lunzhu2md* <技能目录>/
+tmp=$(mktemp -d)
+git clone --depth 1 https://github.com/1012-web/AIhistory1012 "$tmp/repo"
+cp -r "$tmp/repo"/skills/lunzhu2md* <技能目录>/
+rm -rf "$tmp"
 ```
 
 Windows PowerShell：
 
 ```powershell
-git clone https://github.com/1012-web/AIhistory1012
-Copy-Item AIhistory1012\skills\lunzhu2md* <技能目录> -Recurse
+$tmp = Join-Path $env:TEMP ("aih-" + [guid]::NewGuid().ToString("N"))
+git clone --depth 1 https://github.com/1012-web/AIhistory1012 $tmp
+Copy-Item "$tmp\skills\lunzhu2md*" <技能目录> -Recurse
+Remove-Item $tmp -Recurse -Force
 ```
 
-没有 git 就让用户下 zip，解压后同样拷 `skills/` 下三个目录。
+**B. 没有 git**：让用户下 zip（仓库页 Code → Download ZIP）或 tarball，解压到临时目录，拷 `skills/` 下三个目录，删掉解压的东西。
+
+**C. 用户想留着更新**：clone 到固定位置（比如 `~/tools/AIhistory1012`），以后 `git pull` 后重拷一次，或在仓库目录里重跑 `install.py`。
+
+三种都行，选哪种看用户机器上有没有 git、想不想以后自动更新——**不用为此问用户**，按环境选最省事的一种即可；只有“要不要留一份仓库”这种会影响用户磁盘的决定，才值得问一句。
 
 装完目录结构应该是：
 
@@ -46,9 +58,12 @@ Copy-Item AIhistory1012\skills\lunzhu2md* <技能目录> -Recurse
 
 ## 三、脚本版（可选，省事）
 
+在仓库目录里跑（A 方案那种临时目录也行，跑完连目录一起删）：
+
 ```bash
 python install.py --list                 # 探测平台，只读
 python install.py --target <技能目录>     # 装，旧的自动备份成 *.bak-<时间戳>
+python install.py --manual               # 只打印手工步骤
 ```
 
 它多做的事：把文档里的 `${CLAUDE_SKILL_DIR}` 换成本机路径（Claude Code 会自己替换，别的平台不会）、编译所有脚本、检查依赖、检查文档齐不齐。

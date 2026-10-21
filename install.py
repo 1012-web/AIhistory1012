@@ -155,7 +155,12 @@ def install(args) -> int:
                     say(f"  把 {SKILL_DIR_TOKEN} 换成本机路径（{n} 个文档）")
 
     if not args.dry_run and not args.no_verify:
-        return verify(target)
+        rc = verify(target)
+        if rc == 0:
+            say("")
+            say(f"这份仓库如果只是用来装的，装完可以删：{ROOT}")
+            say("（skill 已复制到技能目录，不依赖它；想以后 git pull 更新才需要留着）")
+        return rc
     return 0
 
 
