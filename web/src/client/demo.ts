@@ -41,10 +41,20 @@ function loadIndex(): Promise<DemoIndex> {
   return index;
 }
 
-/** 与服务端的 hash 算法无关：演示站没有磁盘，只要前后一致就行 */
-async function hashText(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+/**
+ * 与服务端的 hash 算法无关：演示站没有磁盘，只要前后一致就行。
+ * 不用 crypto.subtle：它只在安全上下文里有，演示站还没证书时走 http，subtle 是 undefined，
+ * 打开书就会报 `Cannot read properties of undefined (reading 'digest')`。
+ */
+function hashText(text: string): string {
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    a = Math.imul(a ^ code, 16777619) >>> 0;
+    b = Math.imul(b + code, 2246822519) >>> 0;
+  }
+  return `demo-${a.toString(16)}${b.toString(16)}`;
 }
 
 export async function demoBook(): Promise<BookInfo> {
@@ -55,7 +65,7 @@ export async function demoFile(path: string): Promise<{ path: string; text: stri
   const { texts } = await loadIndex();
   const text = texts[path];
   if (text === undefined) throw new Error(`演示书里没有「${path}」`);
-  return { path, text, hash: await hashText(text), mtimeMs: 0 };
+  return { path, text, hash: hashText(text), mtimeMs: 0 };
 }
 
 export function demoSave(): never {
