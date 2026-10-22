@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIhistory1012 · 学术 PDF 转 Markdown，逐页对回原书</title>
+    <meta
+      name="description"
+      content="把论文、专著、教材的 PDF 用 MinerU 重建成忠于原件的 Markdown，再在 Obsidian 插件或网页工作台里左 PDF、右正文对照校读。三个 Claude skill：导入、按页修订、抽检通读。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AIhistory1012 · 学术 PDF 转 Markdown，逐页对回原书" />
+    <meta property="og:description" content="MinerU 重建正文与页码锚点，AI 对照原页修，Obsidian 插件与网页工作台左右对照校读。" />
+    <meta property="og:image" content="https://pdf2md.1012.wiki/assets/workbench.webp" />
+    <meta property="og:url" content="https://pdf2md.1012.wiki/" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="sitenav">
+      <a class="brand" href="./">AIhistory1012</a>
+      <nav>
+        <a href="#demo">演示</a>
+        <a href="#parts">三样东西</a>
+        <a href="#how">怎么用</a>
+        <a href="#install">安装</a>
+        <a href="https://github.com/1012-web/AIhistory1012">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>把论文与专著的 PDF，<br />变成能逐页对回原书的 Markdown</h1>
+        <p class="lede">
+          MinerU 重建正文、脚注、多级标题与物理页锚点；AI 对照原页只改该改的地方；然后在 Obsidian 插件或网页工作台里，左边原件、右边正文，读到哪页跟到哪页。
+        </p>
+        <div class="actions">
+          <a class="button primary" href="./demo/">打开演示</a>
+          <a class="button" href="https://github.com/1012-web/AIhistory1012">看仓库</a>
+        </div>
+        <p class="tiny">给现代出版物：期刊论文、研究专著、教材、横排点校整理本。古籍刻本、抄本、竖排本不在范围内。</p>
+
+        <figure class="shot">
+          <img
+            src="./assets/workbench.webp"
+            alt="网页工作台：左边是 PDF 原件，右边是 Markdown 正文，按页跟随"
+            width="1600"
+            height="1000"
+            loading="eager"
+          />
+          <figcaption>网页工作台：左 PDF、右正文，按物理页锚点跟随。正文里选一句，PDF 上高亮同一处。</figcaption>
+        </figure>
+      </section>
+
+      <section id="demo">
+        <h2>先试一下</h2>
+        <p>
+          演示站里是梁启超《新史學》（1902，文字据维基文库，CC BY-SA 4.0）的排印本，23 页，按真实流程导入后校读过。能翻页、左右对照、选中正文逐字高亮、全文搜索，设置也能改。
+        </p>
+        <p class="note">
+          演示站只读：它读的是站点自带的这本样例书，没有你本机的文件夹，所以改不了、也存不了盘。要编辑，在本机跑网页工作台（命令见<a href="#install">安装</a>）。
+        </p>
+        <p><a class="button" href="./demo/">进入演示 →</a></p>
+      </section>
+
+      <section id="parts">
+        <h2>一个仓库，三样东西</h2>
+        <table class="parts">
+          <thead>
+            <tr><th>东西</th><th>干什么</th><th>给谁用</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>三个 Claude skill</strong><br /><span class="muted">插件 <code>aihistory1012</code></span></td>
+              <td><code>lunzhu2md</code> 导入、<code>lunzhu2md-fix</code> 按原页修订、<code>lunzhu2md-audit</code> 抽检通读</td>
+              <td>所有人；在 Claude Code（或 Codex）对话里用</td>
+            </tr>
+            <tr>
+              <td><strong>Obsidian 插件</strong><br /><span class="muted">PDF Sync Markdown</span></td>
+              <td>左 PDF、右正文对照，按页跟随，选字逐字高亮，按页校改</td>
+              <td>用 Obsidian 的人</td>
+            </tr>
+            <tr>
+              <td><strong>网页工作台</strong><br /><span class="muted"><code>web/</code></span></td>
+              <td>同样的对照阅读与校改，在本机浏览器里打开一本书的文件夹</td>
+              <td>不用 Obsidian 的人</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">
+          三样只靠一套约定连着：正文里的物理页锚点 <code>&lt;!--pdf-page.N--&gt;</code>、印刷页锚点 <code>&lt;!--p.M--&gt;</code>、frontmatter 里的 <code>pdf</code>，以及 <code>_数据/book.json</code>。阅读工具不识字、不改内容；改内容的是对话里的 AI。
+        </p>
+      </section>
+
+      <section id="how">
+        <h2>怎么用</h2>
+        <ol class="steps">
+          <li>
+            <strong>导入</strong>：在对话里说「把这份 PDF 导入成 Markdown」。MinerU 云端解析一次，重建正文、脚注、多级标题与页码锚点；可选 PaddleOCR 第二家识别交叉核对，拿不准的字列进疑字清单。
+          </li>
+          <li>
+            <strong>对照校读、手改小错</strong>：在插件或网页工作台里打开这本书，读到哪页跟到哪页。错一两个字，直接在正文里改。
+          </li>
+          <li>
+            <strong>大错交 AI 按原页修</strong>：整段丢了、脚注错位、表格坏了，点工具条「复制本页修订请求」，粘给 Claude Code。AI 对照 PDF 原页只改这一页，锚点不动。
+          </li>
+          <li>
+            <strong>可选：抽检通读</strong>：全书导入后让 AI 抽检或逐页通读，出一份问题报告（漏段、错字、锚点、脚注），再按报告逐页修。
+          </li>
+        </ol>
+
+        <div class="gallery">
+          <figure>
+            <img src="./assets/reading.webp" alt="按页跟随：正文滚到第 7 页，PDF 也翻到第 7 页" width="1600" height="1000" loading="lazy" />
+            <figcaption>按页跟随：读到哪页，原件翻到哪页。</figcaption>
+          </figure>
+          <figure>
+            <img src="./assets/highlight.webp" alt="逐字高亮：正文里选一句，PDF 上高亮同一处" width="1600" height="1000" loading="lazy" />
+            <figcaption>逐字高亮：正文里选一句，PDF 上高亮同一处。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>安装</h2>
+
+        <h3>任何 agent：读 INSTALL.md 自己装</h3>
+        <pre><code>git clone https://github.com/1012-web/AIhistory1012
+cd AIhistory1012
+python install.py --list   # 探测平台，只读不写
+python install.py          # 装（多个平台时用 --platform / --target 指定）</code></pre>
+        <p class="note">
+          把仓库链接丢给 Claude Code、Codex 或别的 agent，说一句「读 INSTALL.md，按里面装」也行。MinerU 账号是唯一需要人做的事。
+        </p>
+
+        <h3>Obsidian 插件</h3>
+        <p>
+          正在提交 Obsidian 社区插件市场；上架前从
+          <a href="https://github.com/1012-web/AIhistory1012/releases">Releases</a>
+          下载 <code>main.js</code>、<code>manifest.json</code>、<code>styles.css</code>，放进库里的
+          <code>.obsidian/plugins/aihistory-pdf-sync/</code>，在「设置 → 第三方插件」里启用。
+        </p>
+
+        <h3>网页工作台（本机）</h3>
+        <pre><code>cd web
+npm install
+npm run workbench -- "D:\书\某本书"</code></pre>
+        <p class="note">
+          需要 Node.js 24 或更新。只监听 127.0.0.1，网址带令牌，不联网；编辑自动存回硬盘，硬盘上改了网页立刻刷新。
+        </p>
+      </section>
+
+      <section id="notes">
+        <h2>用之前要知道</h2>
+        <ul class="notes">
+          <li><strong>PDF 会上传到识别服务。</strong>主用 <a href="https://mineru.net">MinerU</a>，可选 PaddleOCR 交叉核对。未刊稿、有版权或保密顾虑的材料不要用。</li>
+          <li><strong>AI 会错，而且错得像真的。</strong>所以处处对照原页图；脚本只做机械活，有异常就报告，内容上的判断交 AI，拿不准会问你。</li>
+          <li><strong>密钥只在本机。</strong>用各脚本的 <code>configure</code> 隐藏输入保存（Windows 用 DPAPI 加密），不写进仓库、不打印；插件与网页工作台不联网。</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        站点与演示：静态页面，代码在
+        <a href="https://github.com/1012-web/AIhistory1012">GitHub</a>，MIT 许可。演示书《新史學》文字据维基文库，
+        CC BY-SA 4.0；截图同按 CC BY-SA 4.0 释出。
+      </p>
+      <p class="tiny">
+        <a href="https://github.com/1012-web/AIhistory1012/blob/main/INSTALL.md">INSTALL.md</a> ·
+        <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/anchors.md">锚点约定</a> ·
+        <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/division-of-labor.md">分工</a> ·
+        <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/known-issues.md">已知问题</a>
+      </p>
+    </footer>
+  </body>
+</html>

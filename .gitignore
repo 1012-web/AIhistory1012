@@ -37,3 +37,6 @@ dist/
 *.log
 .scratch/
 .obsidian-cache/
+
+# 预览站：主页手写，site/demo/ 是 web/ 静态导出的产物（npm run demo 生成，由 CI 现造）
+site/demo/
