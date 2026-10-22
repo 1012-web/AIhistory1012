@@ -25,14 +25,18 @@ function run(args, extraEnv = {}) {
 }
 
 run(["scripts/make-demo.mjs"]);
+// pdf.js 的 worker、CMap、标准字体是 public/pdfjs/ 下的静态文件。不指望 npm 的 postinstall：
+// 新版 npm 默认不跑依赖的安装脚本，CI 上可能一个都没跑
+run(["scripts/copy-pdfjs.mjs"]);
 run(["scripts/ensure-plugin-deps.mjs"]);
+
+rmSync(out, { recursive: true, force: true }); // 清掉上一次的导出，免得旧文件混进来
 run([join(web, "node_modules", "next", "dist", "bin", "next"), "build"], {
   AIH_DEMO: "1",
   NEXT_PUBLIC_AIH_DEMO: "1",
   NEXT_PUBLIC_AIH_BASE: "/demo",
 });
 
-rmSync(out, { recursive: false, force: true });
 const target = join(site, "demo");
 rmSync(target, { recursive: true, force: true });
 mkdirSync(target, { recursive: true });
