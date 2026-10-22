@@ -8,6 +8,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { MotionConfig, motion } from "motion/react";
 import { useState } from "react";
 import type { SettingsSnapshot } from "./api";
+import { DEMO } from "./api";
 import { dockChoiceOf, withDockChoice, type WebPrefs } from "./prefs";
 import { CheckRow, ChoiceRow, GettingStarted, SettingsHeader, SPRING } from "@/s3/ui";
 
@@ -106,6 +107,8 @@ export function SettingsDialog({ open, prefs, info, onChange, onPort, onReopenGu
                 onDo={(id) => onPractice(id as "highlight" | "pageEdit")}
               />
             </Group>
+            {/* 演示站没有本机服务，端口这一组不显示 */}
+            {!DEMO && (
             <Group title="本机服务">
               <div className="aps-row">
                 <span>默认端口</span>
@@ -145,6 +148,7 @@ export function SettingsDialog({ open, prefs, info, onChange, onPort, onReopenGu
               </p>
               {portMessage ? <p className="aih-port-message" role="status">{portMessage}</p> : null}
             </Group>
+            )}
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>

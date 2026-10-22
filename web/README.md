@@ -28,6 +28,20 @@ npm run workbench -- "D:\书\新史學"
   配置文件：Windows 是 `%APPDATA%\AIhistory1012\workbench.json`（其他系统 `~/.config/aihistory1012/workbench.json`），里面还存着界面设置。删掉它会换一个新令牌。
 - 其他选项：`--no-open`（不自动开浏览器）。改界面代码时用 `npm run dev -- "<书文件夹>"`。
 
+## 演示站（线上，只读）
+
+线上预览在 <https://pdf2md.1012.wiki/demo/>：同一套界面静态导出的一份，读的是站点自带的公版样例书，能翻页、对照、选字高亮、搜索，**不能存盘**（没有本机文件夹可写）。
+
+```bash
+npm run demo        # 造演示书 → next build（output: export，basePath /demo）→ 拷进 ../site/demo/
+npm run demo:serve  # 本机预览整个站点：http://127.0.0.1:4320/
+```
+
+- 演示模式由 `src/client/demo.ts` 接管：`fetchBook`/`fetchFile` 读 `public/demo/index.json`；保存直接报只读；设置存在浏览器 localStorage；PDF 走静态文件。`api.ts` 里每个接口开头一行 `DEMO ? …` 分支，本机版一行都不走。
+- `scripts/make-demo.mjs` 从 `tests/fixtures/clean/新史學` 与 `tests/fixtures/新史學.pdf` 造数据（公版，CC BY-SA 4.0），不读本机任何材料。
+- 静态导出时 `_next/` 与 pdf.js 的 worker/CMap 都在 `/demo/` 下，靠 `NEXT_PUBLIC_AIH_BASE` 拼绝对路径（`PdfPane.tsx` 的 `asset()`）。
+- 站点主页是仓库根目录的 `site/index.html`（手写，无构建），`site/CNAME` 是自定义域名；推送 main 后由 `.github/workflows/pages.yml` 上传整个 `site/`。
+
 ## 能做什么
 
 | 功能 | 说明 |

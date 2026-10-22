@@ -13,6 +13,7 @@ import { tags } from "@lezer/highlight";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { markdownPointAt, parsedDoc, scrollMarkdownTo, scrollOffsetToBaseline, type MarkdownPoint } from "@/s3/core";
 import { currentPageExtension, pageLabels as labelExtension, setCurrentPage, suspectLinks } from "./extensions";
+import { DEMO } from "../demo";
 import type { PagePoint } from "@/s3/core";
 
 export interface EditorSelectionInfo {
@@ -98,6 +99,8 @@ export const EditorPane = forwardRef<EditorHandle, Props>(function EditorPane(pr
     highlightSelectionMatches(),
     search({ top: true }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+    // 演示站只读：能滚动、能选字、能点锚点标签，但改不了正文（见 demo.ts）
+    ...(DEMO ? [EditorView.editable.of(false)] : []),
     // frontmatter 按 YAML 认，免得结尾的 --- 被当成 Setext 标题把整块加粗
     yamlFrontmatter({ content: markdown() }),
     syntaxHighlighting(markdownStyle),

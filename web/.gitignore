@@ -1,6 +1,9 @@
 node_modules/
 .next/
 public/pdfjs/
+# 演示站的样例书（scripts/make-demo.mjs 现造）与静态导出结果（scripts/build-demo.mjs 挪进 site/demo/）
+public/demo/
+out/
 test-results/
 playwright-report/
 *.tsbuildinfo

@@ -6,6 +6,7 @@
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { pdfSource } from "../api";
+import { asset } from "../demo";
 import { baselineY, pdfPointAt, scrollDeltaToBaseline, type PageBox, type PagePoint, type SelectionContext } from "@/s3/core";
 import { PdfHighlighter, selectionContext, waitTextSpans, type HighlightRequest } from "@/s3/core";
 
@@ -29,7 +30,7 @@ function loadPdfjs() {
   loader ??= (async () => {
     const pdfjs = await import("pdfjs-dist");
     (globalThis as unknown as { pdfjsLib: PdfjsModule }).pdfjsLib = pdfjs;
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = asset("/pdfjs/pdf.worker.min.mjs");
     const viewer = await import("pdfjs-dist/web/pdf_viewer.mjs");
     return { pdfjs, viewer };
   })();
@@ -113,9 +114,9 @@ export const PdfPane = forwardRef<PdfHandle, Props>(function PdfPane(props, ref)
         const source = pdfSource(props.path!);
         task = pdfjs.getDocument({
           ...source,
-          cMapUrl: "/pdfjs/cmaps/",
+          cMapUrl: asset("/pdfjs/cmaps/"),
           cMapPacked: true,
-          standardFontDataUrl: "/pdfjs/standard_fonts/",
+          standardFontDataUrl: asset("/pdfjs/standard_fonts/"),
         });
         const doc = await task.promise;
         if (cancelled) return;

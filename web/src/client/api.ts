@@ -1,10 +1,14 @@
 /**
  * 网页 → 本机服务。令牌由启动命令放在网址的 #token=… 里交来：拿到后存进本标签页，并从地址栏抹掉。
  * 存 localStorage 而不只是 sessionStorage：从疑字清单点开的 /open 链接可能开在新标签页。令牌存在用户配置文件里、重启不换，所以浏览器记住一次就一直能用。
+ *
+ * 演示站（NEXT_PUBLIC_AIH_DEMO=1）另有一套：见 demo.ts。这里每个接口开头转向它，末尾的静态站构建只走到那边。
  */
 import type { BookInfo } from "../../server/book";
 import type { ChangeEvent } from "../../server/watcher";
+import { DEMO, demoBook, demoFile, demoPdfSource, demoSave, demoSaveSettings, demoSettings, demoSubscribe } from "./demo";
 
+export { DEMO };
 export type { BookInfo, ChangeEvent };
 export type { MarkdownInfo } from "../../server/book";
 
@@ -12,6 +16,8 @@ const KEY = "aih-workbench-token";
 const HEADER = "x-aih-token";
 
 export function takeToken(): string | null {
+  // 演示站没有令牌这回事（也没有本机服务）：给个占位值，让启动流程照常往下走
+  if (DEMO) return "demo";
   const match = /(?:^#|&)token=([^&]+)/.exec(window.location.hash);
   if (match) {
     const token = decodeURIComponent(match[1]);
@@ -51,7 +57,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function fetchBook(): Promise<BookInfo> {
-  return call<BookInfo>("/api/book");
+  return DEMO ? demoBook() : call<BookInfo>("/api/book");
 }
 
 export interface FileSnapshot {
@@ -62,12 +68,13 @@ export interface FileSnapshot {
 }
 
 export function fetchFile(path: string): Promise<FileSnapshot> {
-  return call<FileSnapshot>(`/api/file?path=${encodeURIComponent(path)}`);
+  return DEMO ? demoFile(path) : call<FileSnapshot>(`/api/file?path=${encodeURIComponent(path)}`);
 }
 
 export type SaveOutcome = { ok: true; hash: string } | { ok: false; conflict: { text: string; hash: string } };
 
 export async function saveFile(path: string, text: string, baseHash: string | null, force = false): Promise<SaveOutcome> {
+  if (DEMO) return demoSave();
   try {
     const body = await call<{ hash: string }>(`/api/file?path=${encodeURIComponent(path)}`, {
       method: "PUT",
@@ -82,11 +89,13 @@ export async function saveFile(path: string, text: string, baseHash: string | nu
 }
 
 export function pdfSource(path: string): { url: string; httpHeaders: Record<string, string> } {
+  if (DEMO) return demoPdfSource();
   return { url: `/api/pdf?path=${encodeURIComponent(path)}`, httpHeaders: { [HEADER]: takeToken() ?? "" } };
 }
 
 /** 订阅改动推送。用 fetch 读流而不用 EventSource，因为 EventSource 带不了请求头（令牌不想放进网址）。断了自动重连。 */
 export function subscribeChanges(onEvent: (event: ChangeEvent) => void, onState: (connected: boolean) => void): () => void {
+  if (DEMO) return demoSubscribe(onState);
   let stopped = false;
   let controller: AbortController | null = null;
   const run = async () => {
@@ -139,9 +148,9 @@ export interface SettingsSnapshot {
 }
 
 export function fetchSettings(): Promise<SettingsSnapshot> {
-  return call<SettingsSnapshot>("/api/settings");
+  return DEMO ? demoSettings() : call<SettingsSnapshot>("/api/settings");
 }
 
 export function saveSettings(patch: { port?: number; prefs?: Record<string, unknown> }): Promise<SettingsSnapshot> {
-  return call<SettingsSnapshot>("/api/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+  return DEMO ? demoSaveSettings(patch) : call<SettingsSnapshot>("/api/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
 }

@@ -6,7 +6,7 @@
 import { Menu } from "@base-ui/react/menu";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { ApiError, fetchBook, fetchFile, fetchSettings, saveFile, saveSettings, subscribeChanges, takeToken, type BookInfo, type ChangeEvent, type SettingsSnapshot } from "./api";
+import { ApiError, DEMO, fetchBook, fetchFile, fetchSettings, saveFile, saveSettings, subscribeChanges, takeToken, type BookInfo, type ChangeEvent, type SettingsSnapshot } from "./api";
 import { applyChecked, checkTextLayer } from "./pagemark";
 import { DEFAULT_PREFS, dockChoiceOf, normalizePrefs, withDockChoice, type WebPrefs } from "./prefs";
 import { SettingsDialog } from "./SettingsDialog";
@@ -1057,16 +1057,19 @@ export function Workbench() {
           onChoose={(hit) => void onSearchHit(hit)}
         />
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" className="aih-button" onClick={() => void openPagemarks()} title="给没有物理页锚点的笔记，按 PDF 文字层找每页开头补上 <!--pdf-page.N-->；先预览，确认才写">
-            补页码锚点
-          </button>
+          {/* 补锚点要写盘，演示站没有盘可写 */}
+          {!DEMO && (
+            <button type="button" className="aih-button" onClick={() => void openPagemarks()} title="给没有物理页锚点的笔记，按 PDF 文字层找每页开头补上 <!--pdf-page.N-->；先预览，确认才写">
+              补页码锚点
+            </button>
+          )}
           <button type="button" className="aih-button" data-testid="open-settings" onClick={() => setSettingsOpen(true)}>
             设置
           </button>
           <button type="button" className="aih-button" onClick={() => void copyRevision()} title="把本页的定位信息复制下来，粘给 Claude Code 的 lunzhu2md-fix">
             复制本页修订请求
           </button>
-          <SaveChip state={saveState} onOpenConflict={() => setConflictOpen(true)} />
+          {DEMO ? <span className="aih-save" title="演示站只读：改动不会保存">只读</span> : <SaveChip state={saveState} onOpenConflict={() => setConflictOpen(true)} />}
         </div>
       </header>
       {book.bookJsonError && <div className="aih-banner">{book.bookJsonError}</div>}
@@ -1088,7 +1091,7 @@ export function Workbench() {
           PDF 第 {page} 页{printed ? ` · 原书 p.${printed}` : ""}
         </span>
         <span>{openPath}</span>
-        <span className={connected ? "aih-ok" : "aih-warn"}>{connected ? "● 已连上本机服务" : "○ 本机服务断开，重连中"}</span>
+        <span className={DEMO || connected ? "aih-ok" : "aih-warn"}>{DEMO ? "● 演示站 · 只读（样例书《新史學》）" : connected ? "● 已连上本机服务" : "○ 本机服务断开，重连中"}</span>
       </footer>
       {dockZones &&
         (["markdown", "pdf"] as const).map((target) => {

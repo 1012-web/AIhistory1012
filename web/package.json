@@ -18,7 +18,9 @@
     "test": "vitest run",
     "test:e2e": "npm run fixture && npm run build && playwright test",
     "check": "npm run fixture && node scripts/ensure-plugin-deps.mjs && tsc --noEmit && vitest run",
-    "fixture": "python -X utf8 scripts/make-fixture.py"
+    "fixture": "python -X utf8 scripts/make-fixture.py",
+    "demo": "node scripts/build-demo.mjs",
+    "demo:serve": "node scripts/serve-site.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
