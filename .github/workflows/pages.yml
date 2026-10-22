@@ -1,7 +1,9 @@
 name: Pages
 
 # 线上预览站：site/ 里的主页（手写 HTML）+ site/demo/ 里的只读演示站（web/ 静态导出）。
-# 推 main 就重建；也可以在 Actions 里手动跑一次。站点绑在 pdf2md.1012.wiki（site/CNAME）。
+# 推 main 就重建；也可以在 Actions 里手动跑一次。
+# 域名：pdf2md.1012.wiki，Cloudflare 里一条 CNAME pdf2md → 1012-web.github.io，**关掉橙云（DNS only）**，
+# 否则 GitHub 校验域名、签证书会失败。GitHub Pages 里 Enforce HTTPS 打开后，http 会 301 到 https。
 on:
   push:
     branches: [main]
