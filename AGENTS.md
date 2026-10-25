@@ -31,14 +31,15 @@ tests/                  pytest
    - **错误代价低**：最坏是格式瑕疵，不是内容增删、页码错配、引文失真。
    三条全过才自动；缺一条只报告。启发式猜测（像不像断句、像不像标题、哪个字对）一律只给候选。
 5. 报告要让 AI 能直接动手：写清页码、位置、两边的文字，以及可选的做法。
-6. **推荐不是授权**。用户不在场或说「按推荐先做」时，只做点名范围内的最小改动；同页、同书的其他问题另列，不顺手改。做窄、留痕、列清单。
-7. 能自动的只有**三类半**：窄口径半全角（`punct_width.py`，凡例定了才跑）、分卷纯拼接（`merge_skeletons.py`）、MinerU 明确标注的跨页合并（`build.py` 插锚点），以及用户确认过凡例后的标题级应用（**尚未实现**，由 AI 按凡例手工做）。凡例记在 `book.json` 的 `conventions`。其余（推断的断段、期刊信息、疑误读页码、OCR 补空行）只报告。详见 [docs/division-of-labor.md](docs/division-of-labor.md)。
+6. 每份 PDF 在识别/整理前交互选择仅核双家冲突或全书逐页逐字核对；未选不开始，同书已选不重复问。仅核冲突时 AI 对照不同字及必要上下文、结构冲突对应区域裁决，不通读无冲突页面，不自行扩大范围。用户委托整份导入时，AI 完成本书的参数选择、结构整理和检查，不把有原图依据的例行修复交给用户审批；只修某页或只检查时仍遵守对应范围。用户判断 AI 核过原图仍未能确定的疑字。
+7. 已有双家结果却拟换成本地旧文字层、单家来源，或跳过整理核对时，必须先交互说明原因与影响并取得用户明确许可，不能交付后才披露或把一般处理授权当作降级许可。
+8. 区分脚本自动处理与 AI 判断：脚本的结构推断只给候选，AI 对照原页作判断并实施修复；默认保留原书字形、标点，按目录恢复标题。详见 [docs/division-of-labor.md](docs/division-of-labor.md)。
 
 ## skill 规则
 
 - `name` 与文件夹同名，小写字母、数字、连字符；`description` 写清什么时候用、什么时候不用，含用户可能说的原话。
 - 正文写给 agent 看，用祈使句。单文件超过约 500 行就拆进 `references/`，主文件只留路由和不可协商的规则；引用时写相对路径并说明何时读。
-- 脚本路径写 `${CLAUDE_SKILL_DIR}/scripts/…`；`lunzhu2md-fix`、`lunzhu2md-audit` 复用导入 skill 的脚本时写 `${CLAUDE_SKILL_DIR}/../lunzhu2md/scripts/…`，不复制一份。
+- 只发布 `skills/book2md1012` 一个入口；导入、抽检、修订共享 scripts，细则按需读 references。旧入口文档保存在 legacy/，不安装。脚本路径写 `${CLAUDE_SKILL_DIR}/scripts/…`。
 - 每个 skill 另放 `agents/openai.yaml`（Codex 等平台的展示名、一句话说明、默认提示），照 nagi-studio/skills 的格式。SKILL.md 开头说明 `${CLAUDE_SKILL_DIR}` 在别的平台上怎么代入。
 - 脚本 stdout 只打 ASCII 状态行（Windows 控制台是 GBK），详细内容写 UTF-8 报告文件。
 - 新增 skill：路径加进 `plugin.json` 的 `skills`（目录里有 SKILL.md 才加；占位目录不加），README 加一行。
@@ -55,7 +56,7 @@ tests/                  pytest
 ## 凭据与隐私
 
 - 仓库公开。提交前确认没有密钥、令牌、个人姓名、本机绝对路径、待处理文献原文与解析产物（`.gitignore` 已挡 `*.pdf`、`*.json`、`images/`，例外见其中）。
-- 令牌只经各脚本的 `configure` 存在本机用户配置目录，绝不打印、不写盘到仓库、不进命令行参数。
+- 令牌经统一本机配置窗口 `configure_tokens.py` 或原客户端的 `configure` 存在本机用户配置目录，绝不打印、不写盘到仓库、不进命令行参数。
 
 ## 发布
 

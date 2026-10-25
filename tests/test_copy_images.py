@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts" / "copy_images.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts" / "copy_images.py"
 SPEC = importlib.util.spec_from_file_location("copy_images", SCRIPT)
 COPY_IMAGES = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader

@@ -916,7 +916,7 @@ export function Workbench() {
         title: "这份 PDF 没有文字层",
         text:
           `抽看了第 ${layer.sampled.map(([n]) => n).join("、")} 页，都读不出文字（多半是扫描件）。补锚点要靠 PDF 文字层找每页开头，所以这里不硬做。` +
-          "请先用 lunzhu2md 给它做一份文字层副本（<原件>.文字层.pdf），把这本书配到副本上，再来补。",
+          "请先用 book2md1012 给它做一份文字层副本（<原件>.文字层.pdf），把这本书配到副本上，再来补。",
       });
       return;
     }
@@ -1066,7 +1066,7 @@ export function Workbench() {
           <button type="button" className="aih-button" data-testid="open-settings" onClick={() => setSettingsOpen(true)}>
             设置
           </button>
-          <button type="button" className="aih-button" onClick={() => void copyRevision()} title="把本页的定位信息复制下来，粘给 Claude Code 的 lunzhu2md-fix">
+          <button type="button" className="aih-button" onClick={() => void copyRevision()} title="把本页的定位信息复制下来，粘给 Claude Code 的 book2md1012">
             复制本页修订请求
           </button>
           {DEMO ? <span className="aih-save" title="演示站只读：改动不会保存">只读</span> : <SaveChip state={saveState} onOpenConflict={() => setConflictOpen(true)} />}

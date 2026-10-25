@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts" / "merge_skeletons.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts" / "merge_skeletons.py"
 
 
 def test_volumes_are_joined_with_continuous_notes_and_the_seam_is_only_reported(tmp_path: Path) -> None:

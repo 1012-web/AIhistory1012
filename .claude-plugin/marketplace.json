@@ -9,9 +9,16 @@
     {
       "name": "aihistory1012",
       "source": "./",
-      "description": "lunzhu2md import, page-level fix and audit skills for PDF-to-Markdown conversion of modern publications.",
+      "description": "Book2MD1012: one skill for PDF import, cross-checking, audit and revision.",
       "category": "productivity",
-      "keywords": ["pdf", "markdown", "mineru", "ocr", "obsidian", "history"]
+      "keywords": [
+        "pdf",
+        "markdown",
+        "mineru",
+        "ocr",
+        "obsidian",
+        "history"
+      ]
     }
   ]
 }

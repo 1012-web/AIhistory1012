@@ -21,8 +21,8 @@ def _load(name: str, path: Path):
     return mod
 
 
-page_tool = _load("page_tool", ROOT / "skills" / "lunzhu2md-fix" / "scripts" / "page_tool.py")
-audit_scan = _load("audit_scan", ROOT / "skills" / "lunzhu2md-audit" / "scripts" / "audit_scan.py")
+page_tool = _load("page_tool", ROOT / "skills" / "book2md1012" / "scripts" / "page_tool.py")
+audit_scan = _load("audit_scan", ROOT / "skills" / "book2md1012" / "scripts" / "audit_scan.py")
 
 
 @pytest.fixture(scope="session")

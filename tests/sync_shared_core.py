@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "skills" / "lunzhu2md-fix" / "scripts" / "page_tool.py"
-DST = ROOT / "skills" / "lunzhu2md-audit" / "scripts" / "audit_scan.py"
+SRC = ROOT / "skills" / "book2md1012" / "scripts" / "page_tool.py"
+DST = ROOT / "skills" / "book2md1012" / "scripts" / "audit_scan.py"
 BLOCK = re.compile(r"# >>> shared-core.*?# <<< shared-core\n", re.S)
 
 
@@ -25,7 +25,7 @@ def block(text: str) -> str:
 def main() -> int:
     src = SRC.read_text(encoding="utf-8")
     dst = DST.read_text(encoding="utf-8")
-    want = block(src).replace("与 lunzhu2md-audit/scripts/audit_scan.py", "与 lunzhu2md-fix/scripts/page_tool.py")
+    want = block(src).replace("与 scripts/audit_scan.py", "与 scripts/page_tool.py")
     if "--check" in sys.argv:
         return 0 if block(dst) == want else 1
     DST.write_text(BLOCK.sub(lambda _: want, dst, count=1), encoding="utf-8", newline="\n")

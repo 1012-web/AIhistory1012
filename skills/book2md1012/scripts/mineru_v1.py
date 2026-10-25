@@ -357,7 +357,7 @@ def submit(args: argparse.Namespace, token: str, client: Client | None = None) -
     update_skill = any("DocVortex" in reason or "docvortex" in reason for _, reason in fallback)
     if update_skill:
         print("NOTICE_UPDATE_SKILL MinerU V1 now returns the 4.0 (DocVortex) structure; "
-              "update the lunzhu2md skill. Continuing with the v4 API.")
+              "update the Book2md1012 skill. Continuing with the v4 API.")
     if fallback:
         print(f"FALLBACK_V4 parts={len(fallback)}")
         if server_range:

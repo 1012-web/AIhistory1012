@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import _common  # noqa: E402
 

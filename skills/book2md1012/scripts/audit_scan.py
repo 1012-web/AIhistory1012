@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""lunzhu2md-audit 的零花费初筛：不调任何接口、不用 AI，只靠正文与 PDF 文字层找疑点、给抽查页。
+"""Book2md1012 的抽检模式的零花费初筛：不调任何接口、不用 AI，只靠正文与 PDF 文字层找疑点、给抽查页。
 
 只读正文、只写报告：报出的都是「疑点」，是给 AI 看图判断的线索，不是结论；本脚本从不改正文。
 
@@ -37,7 +37,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-# >>> shared-core：与 lunzhu2md-fix/scripts/page_tool.py 逐字相同，改一处要同步另一处（tests 会查）
+# >>> shared-core：与 scripts/page_tool.py 逐字相同，改一处要同步另一处（tests 会查）
 # ---------------------------------------------------------------- 锚点解析
 
 ANCHOR_RE = re.compile(r"<!--\s*pdf-page\.(\d+)\s*-->")
@@ -979,7 +979,7 @@ def check_cross_page_notes(book: Book) -> list[Issue]:
             if tail not in plain[f.page] and tail in plain[f.page + 1]:
                 issues.append(Issue("footnote_page", "low",
                                     f"注文 [^{f.label}] 续到了第 {f.page + 1} 页（末尾的字在文字层第 {f.page + 1} 页）："
-                                    "可按 lunzhu2md-fix 的做法在接缝处补续页锚点（可选，需用户同意）",
+                                    "可按 Book2md1012 的修订模式的做法在接缝处补续页锚点（可选，需用户同意）",
                                     book.rel(d.path), f.page, f.line, _snip(f.text)))
     return issues
 
@@ -1780,7 +1780,7 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
-    ap = argparse.ArgumentParser(description="lunzhu2md-audit 零花费初筛")
+    ap = argparse.ArgumentParser(description="Book2md1012 零花费初筛")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("scan"); p.add_argument("path"); p.add_argument("--out-dir")
     p.add_argument("--sample", type=int); p.add_argument("--seed", type=int, default=1012)

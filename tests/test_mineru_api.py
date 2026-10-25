@@ -15,7 +15,7 @@ from pathlib import Path
 from pypdf import PdfWriter
 
 
-SKILL_ROOT = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md"
+SKILL_ROOT = Path(__file__).resolve().parents[1] / "skills" / "book2md1012"
 CLIENT = SKILL_ROOT / "scripts" / "mineru_api.py"
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 import _common

@@ -11,7 +11,7 @@ python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/paddle_lines.py submit <书>/<原件>
 ```
 
 - 用 PaddleOCR 云端的普通识别（PP-OCRv6），只取行框；它认的字附在行框文件里，只作参考。令牌与 `paddle_api.py` 共用（`configure` 存的那份，或 `--token-file`）。
-- 页面上传到百度飞桨服务器。扫描件在档 ① 里本来就交过 PaddleOCR-VL，不新增暴露面；未刊稿、用户不愿上传的先问。
+- 页面上传到百度飞桨服务器。扫描件在双家流程里本来就交过 PaddleOCR-VL，不新增暴露面；未刊稿、用户不愿上传的先问。
 - 实测（2026-10-20，专著 10 页）：378 行一行没漏，MinerU 的字 99.95% 能对上某一行；10 页整批 9 秒。免费额度每天 2 万页。
 - 已有原始结果时：`paddle_lines.py convert <原始.jsonl> --pages 4,7,11 -o <行框.json>`。
 

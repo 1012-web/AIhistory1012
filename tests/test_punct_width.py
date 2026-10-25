@@ -2,7 +2,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 spec = importlib.util.spec_from_file_location("punct_width", SCRIPTS / "punct_width.py")
 MODULE = importlib.util.module_from_spec(spec)

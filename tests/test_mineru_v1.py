@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from pypdf import PdfReader, PdfWriter
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 CLIENT = SCRIPTS / "mineru_v1.py"
 TOKEN = "sk-secret-v1-test-token"
 

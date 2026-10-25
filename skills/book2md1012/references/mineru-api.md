@@ -7,7 +7,7 @@ MinerU 是导入的骨架：区域框、分类、读序、脚注、图表都从�
 
 ## 令牌
 
-两条接口用同一个令牌，存一次：
+两条接口用同一个令牌，存一次。首次引导优先由 AI 打开 `configure_tokens.py`，让用户在本机窗口粘贴、保存与验证（见 [get-token.md](get-token.md)）。原命令行入口保留：
 
 ```powershell
 python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/mineru_api.py configure
@@ -25,16 +25,9 @@ python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/mineru_api.py configure
 python -X utf8 ${CLAUDE_SKILL_DIR}/scripts/pdf_preflight.py <书>/<原件>.pdf --output <书>/_数据/过程报告/_preflight.json
 ```
 
-报告里的 `recommendedOcrMode` 与 `ocrModeReason` 是建议：
+本地预检只检测是否有可提取文字，不判断“干净”“可疑”或“质量好坏”。`encodingWarnings` 可附带替代字符或空字符的具体提示；没有警告不能作为文字层可靠的依据。检测到文字就交互提问是否沿用，推荐不沿用、由 MinerU 重新识别重构。用户选择后显式传 `ocr` 或 `txt`；已选择过的不再问。抽样未检出文字直接 `ocr`，提取失败不能当成无文字。原 PDF 不改。
 
-| 情况 | 建议 | 说明 |
-|---|---|---|
-| 抽样页没有文字层（扫描件） | `ocr` | 另要做文字层副本（`needsTextLayerCopy: true`） |
-| 中文文字层 | `ocr` | 2026-10-20 实测：一篇期刊论文的文字层本身完好，pypdf、pdfium 都抽得出标点；但 `auto` 走了文字层路线，MinerU 3.4.4 把中文标点吞成空格或 `<sub>`。同一 PDF 走 OCR，标点齐全 |
-| 西文文字层，抽样干净 | `txt` | |
-| 文字层可疑（私用区码位、混杂页） | `ocr` | 并核几页原图 |
-
-用户已明说要哪种的，照用户的。
+两条路线均用 MinerU 返回的版面结构构建 Markdown，再与 PaddleOCR 核对，不直接导出本地旧文字层交付。预检报告旧版可能包含质量指标或自动推荐；复用旧报告时只读页号、是否提取到文字，不沿用旧质量结论。
 
 ## V1 流程（`mineru_v1.py`）
 

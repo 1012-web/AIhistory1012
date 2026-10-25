@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""lunzhu2md-fix 的按页工具：找 PDF、取第 N 页锚点段、渲染页图、读文字层、改动守卫。
+"""Book2md1012 的修订模式的按页工具：找 PDF、取第 N 页锚点段、渲染页图、读文字层、改动守卫。
 
 只做机械活：取段、出图、读文字层、备份、核对改动范围；从不改正文。改什么、怎么改由 AI 对照原页图决定。
 
@@ -38,7 +38,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# >>> shared-core：与 lunzhu2md-audit/scripts/audit_scan.py 逐字相同，改一处要同步另一处（tests 会查）
+# >>> shared-core：与 scripts/audit_scan.py 逐字相同，改一处要同步另一处（tests 会查）
 # ---------------------------------------------------------------- 锚点解析
 
 ANCHOR_RE = re.compile(r"<!--\s*pdf-page\.(\d+)\s*-->")
@@ -892,7 +892,7 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
-    ap = argparse.ArgumentParser(description="lunzhu2md-fix 按页工具")
+    ap = argparse.ArgumentParser(description="Book2md1012 按页工具")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("locate"); p.add_argument("path"); p.set_defaults(fn=cmd_locate)
     p = sub.add_parser("pages"); p.add_argument("path"); p.add_argument("--json", action="store_true")

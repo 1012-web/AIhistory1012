@@ -1,5 +1,5 @@
 /**
- * 物理页锚点的解析：插件与 lunzhu2md skill 之间唯一的接口（见仓库 docs/anchors.md）。
+ * 物理页锚点的解析：插件与 book2md1012 skill 之间唯一的接口（见仓库 docs/anchors.md）。
  *
  *   <!--pdf-page.N-->   PDF 第 N 页（从 1 起）内容的起点，每页一个；段落跨页时插在接缝处（可在行中）
  *   <!--p.M-->          印刷页，紧跟在物理页锚点后

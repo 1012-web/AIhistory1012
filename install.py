@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AIhistory1012 安装器：把三个 skill 装到当前 agent 的技能目录，可选建一个 Obsidian 库。
+"""AIhistory1012 安装器：把统一 skill 装到当前 agent 的技能目录，可选建一个 Obsidian 库。
 
 只用标准库。默认不改用户已有的库（除了新建库时写 .obsidian 骨架）。
 
@@ -43,10 +43,11 @@ DEPS = ("pymupdf", "pypdf", "yaml", "rapidfuzz")
 MANUAL_HINT = """\
 脚本没办成的事，手工做一样可以（不用再试脚本）：
   1. 拿到仓库：git clone https://github.com/1012-web/AIhistory1012
-  2. 把 skills/ 下的三个目录（lunzhu2md、lunzhu2md-fix、lunzhu2md-audit）
+  2. 把 skills/book2md1012 目录
      整个复制到你所用 agent 的技能目录（不知道在哪就问用户，别猜）。
-  3. 校验：python <技能目录>/lunzhu2md/scripts/pdf_preflight.py --help
-  4. 配令牌：python <技能目录>/lunzhu2md/scripts/mineru_api.py configure（用户自己跑）
+  3. 校验：python <技能目录>/book2md1012/scripts/pdf_preflight.py --help
+  4. 由 agent 打开 configure_tokens.py 本机窗口，用户粘贴两家令牌并保存
+  5. 让 agent 读 book2md1012/references/onboarding.md，一次给完 Obsidian 阅读修订引导
 """
 
 # 已知平台的技能目录。探测不到时不要猜，交给用户/agent。
@@ -154,6 +155,8 @@ def install(args) -> int:
                 if n:
                     say(f"  把 {SKILL_DIR_TOKEN} 换成本机路径（{n} 个文档）")
 
+    retire_legacy_entries(target, dry_run=args.dry_run)
+
     if not args.dry_run and not args.no_verify:
         rc = verify(target)
         if rc == 0:
@@ -162,6 +165,20 @@ def install(args) -> int:
             say("（skill 已复制到技能目录，不依赖它；想以后 git pull 更新才需要留着）")
         return rc
     return 0
+
+
+def retire_legacy_entries(target: Path, *, dry_run: bool = False) -> None:
+    """停用旧版三个入口，保留文档和其他用户文件，不删除。"""
+    for name in ("lunzhu2md", "lunzhu2md-fix", "lunzhu2md-audit"):
+        entry = target / name / "SKILL.md"
+        if not entry.is_file():
+            continue
+        backup = entry.with_name("SKILL.legacy.md")
+        if backup.exists():
+            backup = entry.with_name(f"SKILL.legacy-{_dt.datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.md")
+        say(f"停用旧入口 {entry}，文档保存到 {backup}")
+        if not dry_run:
+            entry.rename(backup)
 
 
 def fill_skill_dir(skill_root: Path) -> int:
@@ -185,10 +202,10 @@ def verify(target: Path) -> int:
         if not (dst / "SKILL.md").is_file():
             problems.append(f"{src.name}: 缺 SKILL.md")
 
-    refs = target / "lunzhu2md" / "references"
+    refs = target / "book2md1012" / "references"
     for name in ("anchors.md", "division-of-labor.md"):
         if not (refs / name).is_file():
-            problems.append(f"lunzhu2md: 缺 references/{name}（安装不完整，会找不到锚点约定）")
+            problems.append(f"book2md1012: 缺 references/{name}（安装不完整，会找不到锚点约定）")
 
     bad_py = []
     for py in target.glob("*/scripts/*.py"):
@@ -217,9 +234,10 @@ def verify(target: Path) -> int:
 
     say(f"  ✓ {len(skill_dirs())} 个 skill 已就位，脚本可编译，文档齐全")
     say("\n下一步：")
-    say("  1. 配 MinerU 令牌（本机存一次，别贴进聊天）：")
-    say(f"     python -X utf8 {target / 'lunzhu2md' / 'scripts' / 'mineru_api.py'} configure")
-    say(f"  2. 让 agent 读 {target / 'lunzhu2md' / 'SKILL.md'}，然后说「把这份 PDF 导入成 Markdown」")
+    say("  1. 由 agent 打开本机配置窗口，用户粘贴并保存两家令牌（别贴进聊天）：")
+    say(f"     python -X utf8 {target / 'book2md1012' / 'scripts' / 'configure_tokens.py'}")
+    say(f"  2. 让 agent 读 {target / 'book2md1012' / 'references' / 'onboarding.md'}，给出完整使用引导")
+    say("  3. 作者推荐 Obsidian + PDF Sync Markdown；可自行编辑 Markdown 或交 AI 按页修订")
     return 0
 
 

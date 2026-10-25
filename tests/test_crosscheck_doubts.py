@@ -7,7 +7,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 
 BODY = """---
 title: 测试书 · 正文

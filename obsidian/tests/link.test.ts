@@ -42,7 +42,7 @@ describe("revision request", () => {
       segment: `<!--pdf-page.4--><!--p.113-->${"甲".repeat(40)}${"乙".repeat(40)}`,
       selection: "乙乙"
     });
-    expect(text).toContain("PDF 第 4 页（印刷页 p.113）");
+    expect(text).toContain("请用 book2md1012 按原页修订：PDF 第 4 页（印刷页 p.113）");
     expect(text).toContain(`本页开头：${"甲".repeat(30)}`);
     expect(text).toContain(`本页结尾：${"乙".repeat(30)}`);
     expect(text).toContain("选中的文字：乙乙");

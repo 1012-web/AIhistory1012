@@ -13,12 +13,12 @@ MIRRORED = ("anchors.md", "division-of-labor.md")
 def test_mirrored_docs_match():
     for name in MIRRORED:
         src = ROOT / "docs" / name
-        dst = SKILLS / "lunzhu2md" / "references" / name
+        dst = SKILLS / "book2md1012" / "references" / name
         assert src.is_file(), f"缺 docs/{name}"
-        assert dst.is_file(), f"缺 skills/lunzhu2md/references/{name}"
+        assert dst.is_file(), f"缺 skills/book2md1012/references/{name}"
         assert src.read_bytes() == dst.read_bytes(), (
             f"{name} 的两份内容不一致。改 docs/{name} 之后，"
-            f"要同步覆盖 skills/lunzhu2md/references/{name}（skill 单独安装时要能自包含）"
+            f"要同步覆盖 skills/book2md1012/references/{name}（skill 单独安装时要能自包含）"
         )
 
 

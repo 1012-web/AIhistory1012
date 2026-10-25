@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 BOOK = """---

@@ -1,4 +1,0 @@
-interface:
-  display_name: "lunzhu2md"
-  short_description: "把论文、专著、教材的 PDF 导入成带页码锚点、脚注齐全的 Markdown"
-  default_prompt: "把这份 PDF 导入成 Markdown："

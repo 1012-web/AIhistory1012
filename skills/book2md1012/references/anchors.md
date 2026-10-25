@@ -1,6 +1,6 @@
 # 锚点与 frontmatter 约定
 
-本文件是 skill（`lunzhu2md`、`lunzhu2md-fix`、`lunzhu2md-audit`）与 Obsidian 插件 `aihistory-pdf-sync` 之间唯一的接口。两边任何一边要改这里的格式，先改本文件，再改代码。
+本文件是统一 skill `book2md1012` 与 Obsidian 插件 `aihistory-pdf-sync` 之间唯一的接口。两边任何一边要改这里的格式，先改本文件，再改代码。
 
 「写的一方」指导入、补锚点、修订的脚本；「读的一方」指插件、verify、audit。写的一方照规则写；读的一方对旧数据、外来笔记从宽。
 
@@ -79,7 +79,7 @@ md1012 时期的成品只有 `<!--p.M-->`（印刷页），没有物理页锚点
 ├─ 00-卷首.md、01-正文.md …    成品正文
 ├─ <书名>.md                   索引
 ├─ <书名>.AI校注.md            校注，与正文分开
-├─ <书名>.疑字清单.md          核字档 ① 有未决项时
+├─ <书名>.疑字清单.md          有未决疑字时
 └─ _数据/
    ├─ book.json               书的配对信息（下节）
    ├─ MinerU/                 MinerU 原始结果，只读
@@ -119,7 +119,7 @@ md1012 时期的成品只有 `<!--p.M-->`（印刷页），没有物理页锚点
 | `title` | 书名 | 1、2 | |
 | `pdf` | 配对 PDF | 1、2 | 相对书文件夹的路径；与 frontmatter `pdf` 指向同一个文件（有文字层副本时是副本） |
 | `printedPageOffset` | 页码偏移 | 1、2 | **物理页 = 印刷页 + 偏移**。例：偏移 8，印刷页 p.1 在 PDF 第 9 页；论文从 p.107 印起、PDF 第 1 页就是 p.107，偏移为 −106。取全书「物理页 − 印刷页」的众数；前后页码体系不同时以正文为准 |
-| `writingMode` | 书写方向 | 1、2 | `horizontal-tb`；本 skill 只做横排 |
+| `writingMode` | 书写方向 | 1、2 | `horizontal-tb` 表示整理后的 Markdown 阅读方向；原 PDF 可为竖排，不能据此字段拒收竖排材料。本次不改变字段取值或插件排版行为 |
 | `index` | 逐字映射索引 | 1 | 旧书的 `_数据/映射/index.json`。第 2 版不写（没有逐字映射）；读的一方没有它就不用映射 |
 | `ocrBackend` | 旧识别后端 | 1 | 旧书的 `onnx` 等。第 2 版不写 |
 | `rebuild` | 旧重建配置 | 1 | 旧书的 `{"config": "_数据/config.json"}`。第 2 版不写 |
@@ -128,11 +128,11 @@ md1012 时期的成品只有 `<!--p.M-->`（印刷页），没有物理页锚点
 | `indexNote` | 索引笔记 | 2 | 书的索引 Markdown（`<书名>.md`），可省 |
 | `files` | 文件列表 | 2 | 按原书顺序，只列有锚点的成品文件（索引不列）。每项 `path` 相对书文件夹；`pdfPages` 是这个文件管的物理页范围 `[首, 末]`（含续页锚点那一页；文件里没有锚点时按上一文件的末页）；`printedPages` 是印刷页范围，可无 |
 | `generator` | 生成工具 | 2 | 如 `lunzhu2md 0.1.0` |
-| `conventions` | 凡例 | 2（可选） | 用户确认过的本书编辑体例，见下节。没有这个字段 = 还没定凡例 |
+| `conventions` | 凡例 | 2（可选） | 本书编辑体例，默认保真由 AI 记录；用户要求改变体例时记录其决定，见下节 |
 
 ### 凡例 `conventions`
 
-凡例是「一本书的编辑体例」：判断由 AI 看原页提出、用户确认一次，之后按凡例整批做，不再逐条问（见 [division-of-labor.md](division-of-labor.md) 第五节）。确认后由 AI 写进 `book.json`；只记这一本书，下一本不沿用。
+凡例是「一本书的编辑体例」：AI 据原页记录，默认保留字形和标点、据目录与正文恢复标题，不要求用户确认技术映射。用户明确要求统一字形或标点时记录其决定。`confirmed` 仍只表示用户实际确认的日期；AI 自行记录默认体例时省略该字段，不能伪造用户确认。只记这一本书，下一本重新核原页。见 [division-of-labor.md](division-of-labor.md)。
 
 ```json
 "conventions": {
@@ -172,12 +172,14 @@ obsidian://aihistory-pdf-sync?file=<书文件夹名>/<文件名>&page=<N>&text=<
 - `ctx` 是含现字的上下文：**前约 6 字 + 现字 + 后约 6 字**，取正文原样（含标点与 Markdown 记号），不跨页码锚点、不跨段落。
 - 插件在第 N 页的锚点段内找 `text`，多处命中时用 `ctx` 消歧，选中并带动 PDF 翻到该页。
 
-## 修订请求格式（插件 → lunzhu2md-fix）
+skill 改名为 Book2MD1012 后，已有书的 `lunzhu2md-` 编号、`_lunzhu2md_source.json` 来源文件及锚点格式继续沿用，不批量改写。
 
-插件「复制本页修订请求」生成的文字，以 `obsidian/src/core/revision.ts` 为准，`lunzhu2md-fix` 照此解析。网页工作台用同一份代码生成。
+## 修订请求格式（插件 → book2md1012）
+
+插件「复制本页修订请求」生成的文字，以 `obsidian/src/core/revision.ts` 为准，`book2md1012` 的修订流程照此解析（兼容旧版请求中的 `lunzhu2md-fix`）。网页工作台用同一份代码生成。
 
 ```
-请用 lunzhu2md-fix 按原页修订：PDF 第 N 页（印刷页 p.M）。
+请用 book2md1012 按原页修订：PDF 第 N 页（印刷页 p.M）。
 - 笔记：<笔记绝对路径；拿不到时给库内路径>
 - PDF：<PDF 绝对路径>
 - 锚点：<!--pdf-page.N-->

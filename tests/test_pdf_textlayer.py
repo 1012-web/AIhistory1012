@@ -8,7 +8,7 @@ import pytest
 
 pymupdf = pytest.importorskip("pymupdf")
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "lunzhu2md" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "book2md1012" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 spec = importlib.util.spec_from_file_location("pdf_textlayer", SCRIPTS / "pdf_textlayer.py")
 MODULE = importlib.util.module_from_spec(spec)
