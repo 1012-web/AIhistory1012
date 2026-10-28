@@ -14,6 +14,7 @@ export {
   type ToolbarProps,
   type ToolbarStatus
 } from "./Toolbar";
+export { HeadingCrumbs, type OutlineActions, type OutlinePrefs, type OutlineStatus, type OutlineStyle } from "./Outline";
 export { BindDialog, PagemarkDialog, type BindDialogProps, type PagemarkDialogProps } from "./Dialogs";
 export { Check, CheckRow, Choice, ChoiceRow, type ChoiceOption } from "./controls";
 export { Preview, type DockChoice, type PreviewOptions } from "./Preview";

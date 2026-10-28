@@ -27,6 +27,11 @@ async function userScrollPdf(page: number, fraction: number): Promise<void> {
   }, page, fraction);
 }
 
+/** 工具条上那串标题的文字（getText 会在各级之间插换行，这里取原文） */
+async function crumbsText(): Promise<string> {
+  return browser.execute(() => document.querySelector(".aps-toolbar .aps-crumbs")?.textContent ?? "");
+}
+
 async function scrollTops(): Promise<[number, number]> {
   return browser.executeObsidian(({ app }) => {
     const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
@@ -544,7 +549,7 @@ describe("工具条", function () {
         dh: Math.abs(spacerRect.height - (barRect.height + 12)),
         page: bar.querySelector<HTMLInputElement>(".aps-page-input")!.value,
         text: bar.textContent,
-        chapter: bar.querySelector(".aps-chapter")?.textContent ?? "",
+        chapter: bar.querySelector(".aps-crumbs")?.textContent ?? "",
         progress: (bar.querySelector<HTMLElement>(".aps-prog")?.getBoundingClientRect().width ?? 0) > 0
       };
     });
@@ -572,6 +577,137 @@ describe("工具条", function () {
     expect(now.file).toBe(FILE("03-論正統"));
     await browser.executeObsidian(async ({ app }) => {
       await (app as any).plugins.plugins["aihistory-pdf-sync"].controller.jumpToPage(13);
+    });
+    await settle(600);
+  });
+
+  it("多级标题：一行显示各级标题，不把工具条撑高；点开目录树，▸ 只展开不跳，点文字两边跳过去", async () => {
+    const bar = await browser.$(".aps-toolbar");
+    const height = (await bar.getSize()).height;
+    expect(await crumbsText()).toBe("史學之界說");
+    await browser.$(".aps-toolbar .aps-crumb").click();
+    const here = await browser.$(".aps-outline-pop .aps-ol-item[data-here]");
+    await here.waitForDisplayed();
+    const opened = await browser.execute(() => {
+      const row = document.querySelector<HTMLElement>(".aps-ol-item[data-here]")!;
+      return {
+        focusInSearch: document.activeElement?.classList.contains("aps-ol-search") ?? false,
+        level: row.querySelector(".aps-ol-lv")?.textContent,
+        page: row.querySelector(".aps-ol-pg")?.textContent,
+        rows: [...document.querySelectorAll(".aps-ol-item")].map((el) => el.querySelector(".aps-ol-text")?.textContent)
+      };
+    });
+    expect(opened.focusInSearch).toBe(true);
+    expect(opened.level).toBe("H1");
+    expect(opened.page).toMatch(/^(p\.8|第8页)$/);
+    // 当前就在最上一级：没有临时展开什么
+    expect(opened.rows).toEqual(["史學之界說"]);
+    await here.$(".aps-ol-tw").click();
+    const notes = await browser.$('//*[contains(@class,"aps-ol-item")][.//span[text()="注释"]]');
+    await notes.waitForDisplayed();
+    // 点 ▸ 不跳页，展开记进这本书
+    const remembered = await browser.executeObsidian(({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      return { page: plugin.controller.currentPage, manual: Object.values(plugin.settings.outlineBooks[plugin.controller.book.pdf.path]?.manual ?? {}) };
+    });
+    expect(remembered.page).toBe(13);
+    expect(remembered.manual).toEqual([true]);
+    await browser.saveScreenshot(`${SCREENSHOTS}/06-目录树.png`);
+    await notes.click();
+    await settle(900);
+    const info = await browser.executeObsidian(({ app }) => {
+      const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+      const view = controller.markdownView;
+      const text: string = view.editor.getValue();
+      const cm = view.editor.cm;
+      const rect = (controller.scroller as HTMLElement).getBoundingClientRect();
+      // 阅读线按字形算（逐行对齐的约定：压在行首字的上沿附近），标题行上方的留白不算：看阅读线是否穿过标题那几个字
+      const glyph = cm.coordsAtPos(text.indexOf("## 注释"), 1);
+      const line = rect.top + rect.height * controller.ratioFor("markdown");
+      return {
+        crumbs: document.querySelector(".aps-toolbar .aps-crumbs")?.textContent ?? "",
+        menuOpen: !!document.querySelector(".aps-outline-pop"),
+        // 标题落在正文的阅读线上
+        offBaseline: glyph ? Math.max(0, glyph.top - 4 - line, line - glyph.bottom - 4) : 999
+      };
+    });
+    expect(info.crumbs).toBe("史學之界說›注释");
+    expect(info.menuOpen).toBe(false);
+    expect(info.offBaseline).toBeLessThan(4);
+    expect((await bar.getSize()).height).toBe(height);
+  });
+
+  it("标题菜单：搜索筛选、键盘跳转、全部收起、钉住", async () => {
+    await browser.$(".aps-toolbar .aps-crumb").click();
+    await browser.$(".aps-outline-pop .aps-ol-search").waitForDisplayed();
+    // 搜索：只留匹配的与上级，匹配的字标出来；回车跳到第一个
+    await browser.keys(["史", "學"]);
+    await settle(200);
+    const searched = await browser.execute(() => ({
+      rows: [...document.querySelectorAll(".aps-ol-item .aps-ol-text")].map((el) => el.textContent),
+      hit: document.querySelector(".aps-ol-hit")?.textContent,
+      count: document.querySelector(".aps-ol-count")?.textContent
+    }));
+    expect(searched).toEqual({ rows: ["史學之界說"], hit: "史學", count: "1 个" });
+    await browser.keys(["Enter"]);
+    await settle(900);
+    expect(await crumbsText()).toBe("史學之界說");
+    expect(await browser.$(".aps-outline-pop").isExisting()).toBe(false);
+    // 键盘：↓ 进列表，↓ 到下一行，回车跳
+    await browser.$(".aps-toolbar .aps-crumb").click();
+    await browser.$(".aps-outline-pop .aps-ol-search").waitForDisplayed();
+    // 焦点进列表要等一拍（树组件下一帧才移焦点），按键之间稍停
+    await browser.keys(["ArrowDown"]);
+    await settle(200);
+    await browser.keys(["ArrowDown"]);
+    await settle(200);
+    await browser.keys(["Enter"]);
+    await settle(900);
+    expect(await crumbsText()).toBe("史學之界說›注释");
+    // 全部收起：真收起，并记成这本书的选择
+    await browser.$(".aps-toolbar .aps-crumb").click();
+    await browser.$(".aps-outline-pop .aps-ol-search").waitForDisplayed();
+    await browser.$("button=全部收起").click();
+    await settle(200);
+    const collapsed = await browser.executeObsidian(({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      return { rows: document.querySelectorAll(".aps-ol-item").length, state: plugin.settings.outlineBooks[plugin.controller.book.pdf.path] };
+    });
+    expect(collapsed.rows).toBe(1);
+    expect(collapsed.state).toEqual({ depth: 0, manual: {} });
+    // 钉住：点了标题菜单不关
+    await browser.$('.aps-outline-pop [aria-label="钉住"]').click();
+    await browser.$(".aps-outline-pop .aps-ol-item .aps-ol-text").click();
+    await settle(900);
+    expect(await browser.$(".aps-outline-pop").isDisplayed()).toBe(true);
+    expect(await crumbsText()).toBe("史學之界說");
+    await browser.$('.aps-outline-pop [aria-label="钉住"]').click();
+    await browser.keys(["Escape"]);
+    await settle(300);
+    expect(await browser.$(".aps-outline-pop").isExisting()).toBe(false);
+    expect(await browser.executeObsidian(({ app }) => (app as any).plugins.plugins["aihistory-pdf-sync"].settings.outlinePinned)).toBe(false);
+  });
+
+  it("标题菜单换成分栏：每级一栏，点有下级的往右展开，点没有下级的跳过去", async () => {
+    await browser.executeObsidian(({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      plugin.settings.outlineStyle = "columns";
+      plugin.settingsChanged();
+    });
+    await settle(300);
+    await browser.$(".aps-toolbar .aps-crumb").click();
+    await browser.$(".aps-outline-pop .aps-cols").waitForDisplayed();
+    const columns = async () => browser.execute(() => [...document.querySelectorAll(".aps-col")].map((col) => [...col.querySelectorAll(".aps-ol-text")].map((el) => el.textContent)));
+    expect(await columns()).toEqual([["史學之界說"], ["注释"]]);
+    await browser.saveScreenshot(`${SCREENSHOTS}/07-分栏.png`);
+    await browser.$('//*[contains(@class,"aps-col-item")][.//span[text()="注释"]]').click();
+    await settle(900);
+    expect(await crumbsText()).toBe("史學之界說›注释");
+    await browser.executeObsidian(async ({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      plugin.settings.outlineStyle = "tree";
+      plugin.settingsChanged();
+      await plugin.controller.jumpToPage(13);
     });
     await settle(600);
   });

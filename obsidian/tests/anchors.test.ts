@@ -90,14 +90,33 @@ describe("anchors", () => {
   });
 });
 
-import { headingBefore } from "../src/core/headings";
+import { headingIndexBefore, headingPath, headings, outline, siblingsOf } from "../src/core/headings";
 
 describe("headings", () => {
   it("finds the nearest heading before an offset, skipping code fences", () => {
     const text = "---\na: 1\n---\n# 第一章\n正文\n```\n# 不是标题\n```\n## 第一节 <!--pdf-page.3-->\n更多";
-    expect(headingBefore(text, text.indexOf("正文"))?.text).toBe("第一章");
-    expect(headingBefore(text, text.indexOf("更多"))).toMatchObject({ level: 2, text: "第一节" });
-    expect(headingBefore(text, 2)).toBeNull();
+    const list = headings(text);
+    expect(list[headingIndexBefore(list, text.indexOf("正文"))]?.text).toBe("第一章");
+    expect(list[headingIndexBefore(list, text.indexOf("更多"))]).toMatchObject({ level: 2, text: "第一节" });
+    expect(headingIndexBefore(list, 2)).toBe(-1);
+  });
+
+  it("显示用的标题去掉脚注引用、链接与粗体记号", () => {
+    const text = "##### (3) 统一度量衡[^90]\n## 第八节 秦汉的学术 ^{[^401]}\n### **一**、[[某页|董卓]]之乱";
+    expect(headings(text).map((item) => item.text)).toEqual(["(3) 统一度量衡", "第八节 秦汉的学术", "一、董卓之乱"]);
+  });
+
+  it("上下级：上级是前面最近的、# 更少的标题；跳级照挂", () => {
+    const text = ["# 甲", "## 甲一", "#### 甲一（跳级）", "### 甲一子", "## 甲二", "# 乙", "### 乙下"].join("\n");
+    const list = headings(text);
+    const tree = outline(list);
+    expect(tree.roots).toEqual([0, 5]);
+    expect(tree.children[1]).toEqual([2, 3]);
+    expect(headingPath(tree, 3).map((index) => list[index].text)).toEqual(["甲", "甲一", "甲一子"]);
+    expect(headingPath(tree, 6).map((index) => list[index].text)).toEqual(["乙", "乙下"]);
+    expect(headingPath(tree, -1)).toEqual([]);
+    expect(siblingsOf(tree, 4)).toEqual([1, 4]);
+    expect(siblingsOf(tree, 5)).toEqual([0, 5]);
   });
 });
 

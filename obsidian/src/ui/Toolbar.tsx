@@ -3,8 +3,12 @@
  * （定稿的设计稿，不在仓库里）。不碰 Obsidian：翻页、读当前页、切换联动、
  * 停靠判断都由宿主经 props 注入。颜色只引用 `--aps-*` 设计变量（见 styles.css 开头）。
  *
- *   ⋮⋮  [‹ 37 /919 p.112 ›]  章名  [双向|单向|暂停]  [⇄ PDF 左]  ⋯  –
+ *   ⋮⋮  [‹ 37 /919 p.112 ›]  第三章 › 第二节 › 一、……  [双向|单向|暂停]  [⇄ PDF 左]  ⋯  –
  *   底边 2px 全书进度线；收起后只剩「37 · p.112」，宽度弹簧渐变。
+ *
+ * 多级标题：阅读线处所在标题连同各级上级排成一行（面包屑），只占一行、不把工具条撑高；
+ * 放不下时上级先缩成省略号，当前这一级留得最多。点任一级弹出标题菜单（目录树或分栏，见 Outline.tsx）。
+ * 停靠时卡片撑满停靠框宽度，标题随阅读位置变长变短时其余按钮不左右跳。
  *
  * 定位：始终是 position: fixed 的一张卡片。停靠时宿主给出停靠框（窗格内容区顶部的位置与宽度），
  * 卡片放在框内左上并留白，宿主在窗格里垫等高空白；悬浮时按保存的坐标。
@@ -17,6 +21,7 @@ import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { LayoutGroup, MotionConfig, animate, motion, useMotionValue, useReducedMotion } from "motion/react";
 import { SPRING } from "./motion";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from "react";
+import { HeadingCrumbs, type OutlineActions, type OutlineStatus } from "./Outline";
 
 export type SyncMode = "both" | "one" | "paused";
 
@@ -24,7 +29,8 @@ export interface ToolbarStatus {
   page: number;
   pageCount: number;
   printed: string | null;
-  chapter: string | null;
+  /** 多级标题与标题菜单要的东西 */
+  outline: OutlineStatus;
   /** PDF 缩放比例，1 = 100% */
   scale: number;
   mode: SyncMode;
@@ -48,7 +54,7 @@ export interface DockFrame {
   width: number;
 }
 
-export interface ToolbarActions {
+export interface ToolbarActions extends OutlineActions {
   jump: (page: number) => void;
   step: (delta: number) => void;
   setMode: (mode: SyncMode) => void;
@@ -214,7 +220,12 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
     <motion.div
       ref={cardRef}
       className={classes}
-      style={{ x, y, maxWidth: docked && dock ? dock.width - DOCK_INSET.left * 2 : undefined }}
+      style={{
+        x,
+        y,
+        maxWidth: docked && dock ? dock.width - DOCK_INSET.left * 2 : undefined,
+        minWidth: docked && dock && !collapsed ? dock.width - DOCK_INSET.left * 2 : undefined
+      }}
       data-page={status.page}
     >
       <span className="aps-grip" aria-label="拖动工具条" onPointerDown={startDrag}>⋮⋮</span>
@@ -223,7 +234,7 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
       ) : (
         <>
           <PageStepper status={status} actions={actions} />
-          <span className="aps-chapter" title={status.chapter ?? ""}>{status.chapter ?? ""}</span>
+          <HeadingCrumbs outline={status.outline} actions={actions} container={portalContainer} />
           <LayoutGroup id={groupId}>
             <ToggleGroup
               className="aps-seg"

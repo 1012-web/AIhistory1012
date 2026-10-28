@@ -28,6 +28,10 @@ export interface OnboardingValues {
   /** 当前页标示 */
   shade: "tint" | "bar" | "off";
   reducedMotion: boolean;
+  /** 点工具条上的标题弹出的菜单：目录树 / 分栏 */
+  outlineStyle: "tree" | "columns";
+  /** 标题菜单每行右边的页码 */
+  outlinePages: "printed" | "pdf" | "both";
 }
 
 export interface OnboardingBook {
@@ -131,6 +135,19 @@ export function Onboarding(props: OnboardingProps): ReactElement {
       />
       <p className="aps-hint">夜间模式把 PDF 页面反色成深底浅字（图片颜色也会反过来）；跟随主题时随 Obsidian 亮暗自动切换。</p>
       <CheckRow label="动效" hint="关掉即减少动效" checked={!values.reducedMotion} onChange={(value) => set("reducedMotion", !value)} />
+      <ChoiceRow
+        title="标题菜单样式"
+        value={values.outlineStyle}
+        onChange={(value) => set("outlineStyle", value)}
+        options={[{ value: "tree", label: "目录树" }, { value: "columns", label: "分栏" }]}
+      />
+      <ChoiceRow
+        title="标题菜单里的页码"
+        value={values.outlinePages}
+        onChange={(value) => set("outlinePages", value)}
+        options={[{ value: "printed", label: "印刷页" }, { value: "pdf", label: "PDF 页" }, { value: "both", label: "两个都标" }]}
+      />
+      <p className="aps-hint">点工具条上的标题会弹出标题菜单。目录树：H1–H5 缩进成一棵树；分栏：当前位置的每一级并排一栏。页码在中文界面写「第50页」，其他语言写「p.50」。</p>
     </div>,
     <div key="start" className="aps-ob-step">
       <div className="aps-row">选一本你自己的书，走三步导览</div>

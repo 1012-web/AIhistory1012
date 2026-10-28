@@ -70,7 +70,9 @@ export class OnboardingHost {
       nightTone: settings.nightTone,
       pageLabels: settings.pageLabels,
       shade: settings.shadeStyle,
-      reducedMotion: settings.reducedMotion
+      reducedMotion: settings.reducedMotion,
+      outlineStyle: settings.outlineStyle,
+      outlinePages: settings.outlinePages
     };
   }
 
@@ -87,6 +89,8 @@ export class OnboardingHost {
     settings.pageLabels = values.pageLabels;
     settings.shadeStyle = values.shade;
     settings.reducedMotion = values.reducedMotion;
+    settings.outlineStyle = values.outlineStyle;
+    settings.outlinePages = values.outlinePages;
     // 换边要把已开的 PDF 挪过去：交给控制器（它自己改设置并保存）
     if (values.pdfSide !== settings.pdfSide) await this.plugin.controller.swapSide();
     await this.plugin.saveSettings();
