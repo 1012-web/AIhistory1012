@@ -27,10 +27,14 @@ async function userScrollPdf(page: number, fraction: number): Promise<void> {
   }, page, fraction);
 }
 
-/** 工具条上那串标题的文字（getText 会在各级之间插换行，这里取原文） */
+/**
+ * 工具条上当前标题的完整路径（取悬停提示，各级以 › 相连）。
+ * 窄窗格里完整路径放不下时只显示最末一级。
+ */
 async function crumbsText(): Promise<string> {
-  return browser.execute(() => document.querySelector(".aps-toolbar .aps-crumbs")?.textContent ?? "");
+  return browser.execute(() => (document.querySelector(".aps-toolbar .aps-crumbs")?.getAttribute("title") ?? "").replace(/\s*›\s*/g, "›"));
 }
+
 
 async function scrollTops(): Promise<[number, number]> {
   return browser.executeObsidian(({ app }) => {
@@ -443,13 +447,18 @@ describe("工具条", function () {
       const rect = (controller.scroller as HTMLElement).getBoundingClientRect();
       const headingTop = cm.lineBlockAt(text.indexOf("## 注释")).top + cm.documentTop;
       return {
-        crumbs: document.querySelector(".aps-toolbar .aps-crumbs")?.textContent ?? "",
+        crumbs: (document.querySelector(".aps-toolbar .aps-crumbs")?.getAttribute("title") ?? "").replace(/\s*›\s*/g, "›"),
+        shown: [...document.querySelectorAll(".aps-toolbar .aps-crumbs .aps-crumb")].map((el) => el.textContent),
+        cut: [...document.querySelectorAll<HTMLElement>(".aps-toolbar .aps-crumbs .aps-crumb")].some((el) => el.scrollWidth > el.clientWidth + 1),
         menuOpen: !!document.querySelector(".aps-outline-pop"),
         // 标题落在正文的阅读线上
         offBaseline: Math.abs(headingTop - (rect.top + rect.height * controller.ratioFor("markdown")))
       };
     });
     expect(info.crumbs).toBe("史學之界說›注释");
+    // 测试窗口里正文窗格窄：完整路径放不下就只显示最末一级，且不再截成省略号
+    if (info.shown.length === 1) expect(info.shown).toEqual(["注释"]);
+    else expect(info.cut).toBe(false);
     expect(info.menuOpen).toBe(false);
     expect(info.offBaseline).toBeLessThan(4);
     expect((await bar.getSize()).height).toBe(height);
@@ -587,6 +596,25 @@ describe("工具条", function () {
     expect(info).toEqual({ before: true, after: false, saved: false, restored: true });
   });
 
+  it("溢出菜单底部「插件设置…」打开本插件的设置页", async () => {
+    const info = await browser.executeObsidian(async ({ app }) => {
+      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      document.querySelector<HTMLElement>(".aps-toolbar .aps-more")!.click();
+      await wait(300);
+      const items = Array.from(document.querySelectorAll<HTMLElement>(".aps-menu .aps-menu-item"));
+      const last = items[items.length - 1]?.textContent ?? "";
+      document.querySelector<HTMLElement>(".aps-menu .aps-open-settings")!.click();
+      await wait(500);
+      const setting = (app as any).setting;
+      const tab = setting.activeTab?.id ?? "";
+      setting.close();
+      await wait(200);
+      return { last, tab };
+    });
+    expect(info.last).toContain("插件设置");
+    expect(info.tab).toBe("aihistory-pdf-sync");
+  });
+
   it("拖出来悬浮、拖近 PDF 窗格顶部吸附过去；位置记进设置", async () => {
     const drag = async (toX: number, toY: number | "pdf-top") => browser.executeObsidian(async ({ app }, x, y) => {
       const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
@@ -610,12 +638,28 @@ describe("工具条", function () {
       // 等弹簧动画落定
       await new Promise((resolve) => setTimeout(resolve, 900));
       const bar = document.querySelector<HTMLElement>(".aps-toolbar")!;
-      return { zones, hint, classes: bar.className, rect: bar.getBoundingClientRect().toJSON(), state: { ...controller.settings.toolbar } };
+      const crumbs = bar.querySelectorAll(".aps-crumbs .aps-crumb").length;
+      // 一行：所有直接子元素的顶边都在第一行里
+      const tops = Array.from(bar.children).filter((el) => !el.classList.contains("aps-prog")).map((el) => el.getBoundingClientRect().top);
+      const oneRow = Math.max(...tops) - Math.min(...tops) < 12;
+      return { zones, hint, crumbs, oneRow, view: { w: window.innerWidth, h: window.innerHeight }, classes: bar.className, rect: bar.getBoundingClientRect().toJSON(), state: { ...controller.settings.toolbar } };
     }, toX, toY);
     const floating = await drag(500, 400);
     expect(floating.classes).toContain("aps-floating");
     expect(floating.state.mode).toBe("floating");
     expect(Math.abs(floating.rect.top - floating.state.y)).toBeLessThan(3);
+    // 悬浮时标题只留最末一级，卡片不折行
+    expect(floating.crumbs).toBe(1);
+    expect(floating.oneRow).toBe(true);
+    // 拖到窗口外：存下的位置和卡片都夹回窗口里
+    const outside = await drag(-600, -300);
+    expect(outside.state.x).toBeGreaterThanOrEqual(0);
+    expect(outside.state.y).toBeGreaterThanOrEqual(0);
+    expect(outside.rect.left).toBeGreaterThanOrEqual(-1);
+    expect(outside.rect.top).toBeGreaterThanOrEqual(-1);
+    const farOut = await drag(99999, 99999);
+    expect(farOut.rect.right).toBeLessThanOrEqual(farOut.view.w + 1);
+    expect(farOut.rect.bottom).toBeLessThanOrEqual(farOut.view.h + 1);
     await browser.saveScreenshot(`${SCREENSHOTS}/06-工具条悬浮.png`);
     expect(floating.zones).toBe(2);
     expect(floating.hint).toBe(false);

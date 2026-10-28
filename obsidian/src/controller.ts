@@ -32,6 +32,8 @@ export interface ControllerHost {
   app: App;
   settings: PdfSyncSettings;
   saveSettings(): Promise<void>;
+  /** 打开本插件的设置页 */
+  openSettings(): void;
   statusBar: HTMLElement;
 }
 
@@ -90,6 +92,7 @@ export class SyncController {
       },
       swapSide: () => void this.swapSide(),
       rebind: () => this.chooseAndBind(),
+      openSettings: () => host.openSettings(),
       setOutline: (prefs) => {
         const settings = this.settings;
         if (prefs.showLevel !== undefined) settings.outlineShowLevel = prefs.showLevel;

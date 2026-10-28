@@ -64,15 +64,36 @@ interface TreeNode {
 const ROOT_NODE: TreeNode = { index: -1 };
 
 /** 工具条上的一串标题；点任一级打开标题菜单，光标落在点的那一级上 */
-export function HeadingCrumbs({ outline: o, actions, container }: { outline: OutlineStatus; actions: OutlineActions; container: HTMLElement | null }): ReactElement {
+export function HeadingCrumbs({ outline: o, actions, container, leafOnly = false }: { outline: OutlineStatus; actions: OutlineActions; container: HTMLElement | null; leafOnly?: boolean }): ReactElement {
   const tree = useMemo(() => buildOutline(o.headings), [o.headings]);
   const current = o.current < o.headings.length ? o.current : -1;
-  const path = headingPath(tree, current);
+  const fullPath = headingPath(tree, current);
+  const pathKey = fullPath.join(",");
+  // 完整路径放不下（有一级被截成省略号）就只留最末一级；记下当时的宽度，变宽了或换了标题再试完整路径
+  const crumbsRef = useRef<HTMLButtonElement>(null);
+  const [width, setWidth] = useState(0);
+  const [tight, setTight] = useState<{ key: string; width: number } | null>(null);
+  const short = leafOnly || (tight !== null && tight.key === pathKey && width <= tight.width + 8);
+  const path = short ? fullPath.slice(-1) : fullPath;
+  useLayoutEffect(() => {
+    const element = crumbsRef.current;
+    const view = element?.ownerDocument.defaultView;
+    if (!element || !view?.ResizeObserver) return undefined;
+    const observer = new view.ResizeObserver(() => setWidth(element.clientWidth));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const element = crumbsRef.current;
+    if (!element || short || fullPath.length < 2) return;
+    const cut = Array.from(element.querySelectorAll<HTMLElement>(".aps-crumb")).some((crumb) => crumb.scrollWidth > crumb.clientWidth + 1);
+    if (cut) setTight({ key: pathKey, width: element.clientWidth });
+  });
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
-  if (!o.headings.length) return <span className="aps-crumbs" />;
-  const full = path.map((index) => o.headings[index].text).join(" › ");
+  if (!o.headings.length) return <span className="aps-crumbs" ref={crumbsRef} />;
+  const full = fullPath.map((index) => o.headings[index].text).join(" › ");
   return (
     <Popover.Root
       open={open}
@@ -83,6 +104,7 @@ export function HeadingCrumbs({ outline: o, actions, container }: { outline: Out
       }}
     >
       <Popover.Trigger
+        ref={crumbsRef}
         nativeButton={false}
         render={<span />}
         className="aps-crumbs"

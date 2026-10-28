@@ -23,6 +23,7 @@ export interface ToolbarHostOptions {
   swapSide(): void;
   zoom(delta: number | null): void;
   rebind(): void;
+  openSettings(): void;
   setOutline(prefs: OutlinePrefs): void;
   setOutlineBook(state: OutlineBookState): void;
 }
@@ -30,6 +31,8 @@ export interface ToolbarHostOptions {
 const SNAP_DISTANCE = 36;
 /** 拖动时各窗格顶部显示的停靠区高度 */
 const ZONE_HEIGHT = 48;
+/** 还没量到卡片尺寸时，至少留这么多在窗口里 */
+const MIN_VISIBLE = 48;
 
 function contentOf(leaf: WorkspaceLeaf | null): HTMLElement | null {
   return leaf?.view.containerEl.querySelector<HTMLElement>(":scope > .view-content") ?? null;
@@ -59,6 +62,7 @@ export class ToolbarHost {
       swapSide: () => options.swapSide(),
       zoom: (delta) => options.zoom(delta),
       rebind: () => options.rebind(),
+      openSettings: () => options.openSettings(),
       setOutline: (prefs) => options.setOutline(prefs),
       setOutlineBook: (state) => options.setOutlineBook(state),
       setCollapsed: (collapsed) => {
@@ -73,6 +77,8 @@ export class ToolbarHost {
         this.height = height;
         this.width = width;
         this.syncSpacer();
+        // 悬浮时尺寸变了（展开、收起）要重新夹回窗口里
+        if (this.options.state().mode === "floating") this.render();
       }
     };
   }
@@ -153,16 +159,26 @@ export class ToolbarHost {
   private render(): void {
     if (!this.root || !this.status || !this.mount) return;
     const state = this.options.state();
+    const { x, y } = this.clampFloating(state.x, state.y);
     this.root.render(
       <Toolbar
         status={this.status}
-        placement={{ mode: state.mode, x: state.x, y: state.y, collapsed: state.collapsed }}
+        placement={{ mode: state.mode, x, y, collapsed: state.collapsed }}
         dock={this.dockFrame()}
         reducedMotion={this.options.reducedMotion()}
         portalContainer={this.mount.ownerDocument.body}
         actions={this.actions}
       />
     );
+  }
+
+  /** 悬浮位置夹在窗口里：整张卡片露在窗内，拖出界或窗口缩小后都还能抓回来 */
+  private clampFloating(x: number, y: number): { x: number; y: number } {
+    const win = this.mount?.ownerDocument.defaultView;
+    if (!win) return { x, y };
+    const maxX = Math.max(0, win.innerWidth - Math.min(this.width || MIN_VISIBLE, win.innerWidth));
+    const maxY = Math.max(0, win.innerHeight - Math.min(this.height || MIN_VISIBLE, win.innerHeight));
+    return { x: Math.min(Math.max(0, x), maxX), y: Math.min(Math.max(0, y), maxY) };
   }
 
   /** 某窗格顶部（自己垫的空白也算在里面） */
@@ -208,7 +224,10 @@ export class ToolbarHost {
     this.hideZones();
     const state = this.options.state();
     if (this.snap) this.options.saveState({ ...state, mode: "docked", dock: this.snap });
-    else this.options.saveState({ ...state, mode: "floating", x: Math.round(x), y: Math.round(y) });
+    else {
+      const clamped = this.clampFloating(x, y);
+      this.options.saveState({ ...state, mode: "floating", x: Math.round(clamped.x), y: Math.round(clamped.y) });
+    }
     this.snap = null;
     this.place();
   }

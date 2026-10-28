@@ -9,6 +9,7 @@
  * 多级标题：阅读线处所在标题连同各级上级排成一行（面包屑），只占一行、不把工具条撑高；
  * 放不下时上级先缩成省略号，当前这一级留得最多。点任一级弹出标题菜单（目录树或分栏，见 Outline.tsx）。
  * 停靠时卡片撑满停靠框宽度，标题随阅读位置变长变短时其余按钮不左右跳。
+ * 悬浮时，或停靠时完整路径放不下，只显示最末一级标题（上级仍在悬停提示和标题菜单里）。
  *
  * 定位：始终是 position: fixed 的一张卡片。停靠时宿主给出停靠框（窗格内容区顶部的位置与宽度），
  * 卡片放在框内左上并留白，宿主在窗格里垫等高空白；悬浮时按保存的坐标。
@@ -63,6 +64,8 @@ export interface ToolbarActions extends OutlineActions {
   /** delta 为 null 表示适合页宽 */
   zoom: (delta: number | null) => void;
   rebind: () => void;
+  /** 打开插件设置页 */
+  openSettings: () => void;
   setCollapsed: (collapsed: boolean) => void;
   /** 开始拖：宿主显示各窗格顶部的虚线停靠区 */
   dragStart: () => void;
@@ -234,7 +237,7 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
       ) : (
         <>
           <PageStepper status={status} actions={actions} />
-          <HeadingCrumbs outline={status.outline} actions={actions} container={portalContainer} />
+          <HeadingCrumbs outline={status.outline} actions={actions} container={portalContainer} leafOnly={!docked} />
           <LayoutGroup id={groupId}>
             <ToggleGroup
               className="aps-seg"
@@ -353,6 +356,10 @@ function OverflowMenu({ status, actions, container, autoOpenLabel }: { status: T
               <span className="aps-secondary">配对：</span>
               {status.pdfName}
               <span className="aps-muted">（点击改绑）</span>
+            </Menu.Item>
+            <Menu.Separator className="aps-menu-separator" />
+            <Menu.Item className="aps-menu-item aps-open-settings" onClick={() => actions.openSettings()}>
+              插件设置…
             </Menu.Item>
           </Menu.Popup>
         </Menu.Positioner>

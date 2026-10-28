@@ -27,7 +27,10 @@
   overflow: hidden;
   user-select: none;
 }
+/* 悬浮时不折行：卡片按内容定宽，标题只留最末一级，宿主把它整张夹在窗口里 */
 .aps-toolbar.aps-floating {
+  flex-wrap: nowrap;
+  width: max-content;
   box-shadow: var(--aps-shadow);
 }
 .aps-toolbar.aps-dragging {
@@ -142,7 +145,8 @@
 
 /* ---- 多级标题（面包屑） ----
  * 只占一行：停靠时卡片撑满停靠框，标题吃掉剩下的宽度；放不下时上级先缩（缩放权重 3），当前这一级最后缩。
- * 折行判断按 6em 算，所以标题再长也不会把工具条挤成两行。悬浮时定宽，读着读着按钮不跟着左右跳。 */
+ * 折行判断按 6em 算，所以标题再长也不会把工具条挤成两行。上级一缩成省略号就整段只留最末一级（Outline.tsx）。
+ * 悬浮时只显示最末一级，限宽 16em。 */
 .aps-crumbs {
   display: inline-flex;
   align-items: center;
@@ -152,7 +156,8 @@
   overflow: hidden;
 }
 .aps-floating .aps-crumbs {
-  flex: 0 1 22em;
+  flex: 0 1 auto;
+  max-width: 16em;
 }
 .aps-crumbs:empty {
   display: none;
