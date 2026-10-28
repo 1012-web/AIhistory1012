@@ -1,4 +1,0 @@
-interface:
-  display_name: "Book2MD1012"
-  short_description: "双家 OCR 核对，整理成可对照阅读的 Markdown"
-  default_prompt: "用 $book2md1012 把这份 PDF 整理成可在 Obsidian 对照阅读的 Markdown："

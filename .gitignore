@@ -1,22 +1,12 @@
 __pycache__/
 *.pyc
-.pytest_cache/
-
-# 处理过程中在 MinerU 输出目录里生成的报告，不属于 skill 本身
-_probe.txt
-_markers.tsv
-_build_report.txt
-_verify.txt
-_diff_report.txt
-_skeleton.md
 
 # 绝不提交待处理的文献原文与解析产物（版权）
 *.pdf
 *.json
 images/
 
-# 例外：插件清单、Obsidian 清单、插件源码与测试夹具里的 JSON 要提交
-!.claude-plugin/*.json
+# 例外：Obsidian 清单、插件源码与测试夹具里的 JSON 要提交
 !/manifest.json
 !/versions.json
 !obsidian/**/*.json

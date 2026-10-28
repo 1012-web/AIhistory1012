@@ -1,65 +1,39 @@
 # Agent 维护约定
 
-本仓库是一个 Claude Code 插件市场兼插件本体（`aihistory1012`），外加一个 Obsidian 插件。改动时遵守下面的约定。
+本仓库放 Obsidian 插件 PDF Sync Markdown、本机网页工作台与演示站。配套的 agent skill book2md1012 在另一个仓库 1012-web/AIHIST-skills-1012。改动时遵守下面的约定。
 
 ## 目录结构
 
 ```
-.claude-plugin/
-  marketplace.json      市场 aihistory1012，插件 source "./"
-  plugin.json           插件 aihistory1012；skills 数组列出全部 skill 路径；version 每次发布必改
-skills/<skill-name>/
-  SKILL.md              必需。frontmatter 只放 name + description
-  scripts/              Python 脚本
-  references/*.md       按需加载的长流程
-obsidian/               Obsidian 插件源码（自己的 package.json；根目录不放 package.json）
+obsidian/               Obsidian 插件源码（自己的 package.json）
 manifest.json, versions.json   Obsidian 清单（根目录，Obsidian 只认这里）
-docs/anchors.md         skill 与插件之间唯一的接口约定
-tests/                  pytest
+web/                    本机网页工作台；直接引用 obsidian/src 的源码（@plugin/* 别名）
+site/                   线上预览站主页；site/demo/ 由 web/ 静态导出（CI 现造）
+vault-template/         新建读书库用的 .obsidian 骨架
+docs/anchors.md         与 skill 之间唯一的接口约定（副本，见下）
+docs/division-of-labor.md  脚本、AI、用户的分工（副本）
+tests/fixtures/         公版《新史學》样例书与排印本 PDF，网页演示站与端到端测试用
 ```
 
-根目录不放 `package.json` 与锁文件：插件以仓库根为源时整个仓库会复制进用户本机缓存，根目录有它们会触发装依赖。
+根目录不放 `package.json` 与锁文件：Obsidian 插件与网页工作台各在 `obsidian/`、`web/` 里管自己的依赖。
 
-## 总原则：脚本只做机械活，判断交 AI
+## 与 skill 的接口
 
-1. 脚本只做确定的机械活：解析 MinerU、PaddleOCR 的结果，写锚点，校验，渲染页图，写文字层，执行 AI 给的裁决。遇到异常只报告（列进报告、打 `<!--?…-->` 标记），不自行改内容。
-2. 内容上的判断——补不补、接不接、用哪份字、怎么改、标题几级——交给对话里的 AI：它把脚本输出当证据、不当结论，对照原页图决定并说明理由，拿不准就问用户。
-3. 不为少见情况往脚本里加自动修补规则。新情况先在对话里处理；反复出现、而且能写成确定规则的，才进脚本。
-4. 判断「机械」的标准不是「同样输入永远同样输出」——七项自动改动都满足这一条，因为它们都是代码。要看三件事：
-   - **输入充分**：正确结果所需的信息都在脚本输入里，不需要页图、不需要文意。「识别」也算：连「这是不是脚注」都要判断，就不满足。
-   - **错误可逆、可见**：每处改动有前后文、页码锚点，能一键回退；后续零成本检查能发现。
-   - **错误代价低**：最坏是格式瑕疵，不是内容增删、页码错配、引文失真。
-   三条全过才自动；缺一条只报告。启发式猜测（像不像断句、像不像标题、哪个字对）一律只给候选。
-5. 报告要让 AI 能直接动手：写清页码、位置、两边的文字，以及可选的做法。
-6. 每份 PDF 在识别/整理前交互选择仅核双家冲突或全书逐页逐字核对；未选不开始，同书已选不重复问。仅核冲突时 AI 对照不同字及必要上下文、结构冲突对应区域裁决，不通读无冲突页面，不自行扩大范围。用户委托整份导入时，AI 完成本书的参数选择、结构整理和检查，不把有原图依据的例行修复交给用户审批；只修某页或只检查时仍遵守对应范围。用户判断 AI 核过原图仍未能确定的疑字。
-7. 已有双家结果却拟换成本地旧文字层、单家来源，或跳过整理核对时，必须先交互说明原因与影响并取得用户明确许可，不能交付后才披露或把一般处理授权当作降级许可。
-8. 区分脚本自动处理与 AI 判断：脚本的结构推断只给候选，AI 对照原页作判断并实施修复；默认保留原书字形、标点，按目录恢复标题。详见 [docs/division-of-labor.md](docs/division-of-labor.md)。
+锚点、frontmatter `pdf`、书文件夹、`book.json`、疑字清单链接、修订请求格式以 skill 仓库的 `skills/book2md1012/references/anchors.md` 为唯一源；本仓库 `docs/anchors.md`、`docs/division-of-labor.md` 是逐字副本，不在这里单独改。约定要变时：先在 skill 仓库改并补测试，再把两份副本原样覆盖过来，然后改插件与网页代码、补测试。
 
-## skill 规则
-
-- `name` 与文件夹同名，小写字母、数字、连字符；`description` 写清什么时候用、什么时候不用，含用户可能说的原话。
-- 正文写给 agent 看，用祈使句。单文件超过约 500 行就拆进 `references/`，主文件只留路由和不可协商的规则；引用时写相对路径并说明何时读。
-- 只发布 `skills/book2md1012` 一个入口；导入、抽检、修订共享 scripts，细则按需读 references。旧入口文档保存在 legacy/，不安装。脚本路径写 `${CLAUDE_SKILL_DIR}/scripts/…`。
-- 每个 skill 另放 `agents/openai.yaml`（Codex 等平台的展示名、一句话说明、默认提示），照 nagi-studio/skills 的格式。SKILL.md 开头说明 `${CLAUDE_SKILL_DIR}` 在别的平台上怎么代入。
-- 脚本 stdout 只打 ASCII 状态行（Windows 控制台是 GBK），详细内容写 UTF-8 报告文件。
-- 新增 skill：路径加进 `plugin.json` 的 `skills`（目录里有 SKILL.md 才加；占位目录不加），README 加一行。
-
-## 接口约定
-
-锚点、frontmatter `pdf`、书文件夹、`book.json`、疑字清单链接只以 [docs/anchors.md](docs/anchors.md) 为准。要改先改它，再同时改 skill 脚本与插件，并补测试。
+阅读工具不识字、不改内容；内容修订由对话里的 AI 用 skill 完成，插件只生成「本页修订请求」（格式见 `obsidian/src/core/revision.ts`）。
 
 ## 测试
 
-- `python -X utf8 -m pytest` 必须全过；测试不联网，接口用假响应或本地假服务器。
-- Obsidian 插件在 `obsidian/` 里 `npm run check`。
+- 插件：`obsidian/` 里 `npm run check`（类型检查、eslint、单测）；端到端 `npm run test:e2e`。
+- 网页：`web/` 里 `npm test`；端到端 `npm run test:e2e`。
+- 测试不联网、不读本机书；样例书只用 `tests/fixtures/` 里的公版《新史學》。
 
 ## 凭据与隐私
 
-- 仓库公开。提交前确认没有密钥、令牌、个人姓名、本机绝对路径、待处理文献原文与解析产物（`.gitignore` 已挡 `*.pdf`、`*.json`、`images/`，例外见其中）。
-- 令牌经统一本机配置窗口 `configure_tokens.py` 或原客户端的 `configure` 存在本机用户配置目录，绝不打印、不写盘到仓库、不进命令行参数。
+- 仓库会公开。提交前确认没有密钥、令牌、个人姓名、本机绝对路径、待处理文献原文与解析产物（`.gitignore` 已挡 `*.pdf`、`*.json`、`images/`，例外见其中）。
 
 ## 发布
 
-- 改 `plugin.json` 的 `version`，否则已安装用户收不到更新。
-- Obsidian 发布标签等于版本号（`x.y.z`，不带 v），附件 `main.js`、`manifest.json`、`styles.css`；同仓库别的组件不发 GitHub release。
+- Obsidian 发布标签等于版本号（`x.y.z`，不带 v），与 `manifest.json`、`versions.json` 一致；附件 `main.js`、`manifest.json`、`styles.css`，由 `.github/workflows/obsidian-release.yml` 构建。同仓库别的组件不发 GitHub release。
 - 推送、改名、发布都是对外动作，先经用户同意。

@@ -47,19 +47,6 @@ SOFTWARE.
 `variants.ts`（异体折叠表）、`normalize.ts`（单字归一化）、`unihan-variants.ts`（由 Unicode Unihan 数据库 kTraditionalVariant / kSimplifiedVariant、kZVariant、kSemanticVariant 生成的对照表）。
 PDF 繁简通搜用它们，保证与该插件认的「同一个字」一致。Unihan 数据适用 [Unicode 许可](https://www.unicode.org/license.txt)。
 
-## 只调用、不随包分发的依赖
-
-以下依赖由用户自行安装，本仓库不包含其代码：
-
-| 依赖 | 许可 | 用途 |
-|---|---|---|
-| PyMuPDF | AGPL-3.0 | 渲染页图、写文字层副本 |
-| pypdf | BSD-3-Clause | 拆分 PDF、读页码标签 |
-| RapidFuzz | MIT | 两家识别对齐、文字层对字 |
-| PyYAML | MIT | frontmatter 校验 |
-
-调用的云端服务（MinerU、PaddleOCR）适用其各自的服务条款。
-
 ## 随包分发的运行库
 
 Obsidian 插件把下列库打包进 `main.js`，网页工作台也用同一套版本（均为 MIT 许可）。许可原文如下。

@@ -96,7 +96,7 @@
         <h2>怎么用</h2>
         <ol class="steps">
           <li>
-            <strong>导入</strong>：在对话里说「把这份 PDF 导入成 Markdown」。MinerU 云端解析一次，重建正文、脚注、多级标题与页码锚点；可选 PaddleOCR 第二家识别交叉核对，拿不准的字列进疑字清单。
+            <strong>导入</strong>：在对话里说「把这份 PDF 导入成 Markdown」。MinerU 云端解析一次，重建正文、脚注、多级标题与页码锚点；默认再交 PaddleOCR 第二家识别交叉核对，拿不准的字列进疑字清单。
           </li>
           <li>
             <strong>对照校读、手改小错</strong>：在插件或网页工作台里打开这本书，读到哪页跟到哪页。错一两个字，直接在正文里改。
@@ -124,13 +124,12 @@
       <section id="install">
         <h2>安装</h2>
 
-        <h3>任何 agent：读 INSTALL.md 自己装</h3>
-        <pre><code>git clone https://github.com/1012-web/AIhistory1012
-cd AIhistory1012
-python install.py --list   # 探测平台，只读不写
-python install.py          # 装（多个平台时用 --platform / --target 指定）</code></pre>
+        <h3>skill：整理书的 AI 工具</h3>
+        <p>把这句话发给你的 agent（Claude Code、Codex、Cursor 等）：</p>
+        <pre><code>帮我安装 https://github.com/1012-web/AIHIST-skills-1012 里的 skills</code></pre>
         <p class="note">
-          把仓库链接丢给 Claude Code、Codex 或别的 agent，说一句「读 INSTALL.md，按里面装」也行。MinerU 账号是唯一需要人做的事。
+          也可以自己装：<code>npx skills@latest add 1012-web/AIHIST-skills-1012 -g</code>。skill 在
+          <a href="https://github.com/1012-web/AIHIST-skills-1012">AIHIST-skills-1012</a> 仓库；两家识别服务的账号与令牌需要你本人注册、粘贴，其余交给 AI。
         </p>
 
         <h3>Obsidian 插件</h3>
@@ -153,9 +152,9 @@ npm run workbench -- "D:\书\某本书"</code></pre>
       <section id="notes">
         <h2>用之前要知道</h2>
         <ul class="notes">
-          <li><strong>PDF 会上传到识别服务。</strong>主用 <a href="https://mineru.net">MinerU</a>，可选 PaddleOCR 交叉核对。未刊稿、有版权或保密顾虑的材料不要用。</li>
+          <li><strong>PDF 会上传到识别服务。</strong>默认 <a href="https://mineru.net">MinerU</a> 与 PaddleOCR 两家交叉核对。未刊稿、有版权或保密顾虑的材料不要用。</li>
           <li><strong>AI 会错，而且错得像真的。</strong>所以处处对照原页图；脚本只做机械活，有异常就报告，内容上的判断交 AI，拿不准会问你。</li>
-          <li><strong>密钥只在本机。</strong>用各脚本的 <code>configure</code> 隐藏输入保存（Windows 用 DPAPI 加密），不写进仓库、不打印；插件与网页工作台不联网。</li>
+          <li><strong>密钥只在本机。</strong>经本机配置窗口保存（Windows 用 DPAPI 加密），不写进仓库、不打印；插件与网页工作台不联网。</li>
         </ul>
       </section>
     </main>
@@ -163,11 +162,11 @@ npm run workbench -- "D:\书\某本书"</code></pre>
     <footer>
       <p>
         站点与演示：静态页面，代码在
-        <a href="https://github.com/1012-web/AIhistory1012">GitHub</a>，MIT 许可。演示书《新史學》文字据维基文库，
+        <a href="https://github.com/1012-web/AIhistory1012">插件仓库</a>；整理书的 skill 在
+        <a href="https://github.com/1012-web/AIHIST-skills-1012">AIHIST-skills-1012</a>。均为 MIT 许可。演示书《新史學》文字据维基文库，
         CC BY-SA 4.0；截图同按 CC BY-SA 4.0 释出。
       </p>
       <p class="tiny">
-        <a href="https://github.com/1012-web/AIhistory1012/blob/main/INSTALL.md">INSTALL.md</a> ·
         <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/anchors.md">锚点约定</a> ·
         <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/division-of-labor.md">分工</a> ·
         <a href="https://github.com/1012-web/AIhistory1012/blob/main/docs/known-issues.md">已知问题</a>

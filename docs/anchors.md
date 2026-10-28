@@ -176,7 +176,7 @@ skill 改名为 Book2MD1012 后，已有书的 `lunzhu2md-` 编号、`_lunzhu2md
 
 ## 修订请求格式（插件 → book2md1012）
 
-插件「复制本页修订请求」生成的文字，以 `obsidian/src/core/revision.ts` 为准，`book2md1012` 的修订流程照此解析（兼容旧版请求中的 `lunzhu2md-fix`）。网页工作台用同一份代码生成。
+插件「复制本页修订请求」生成的文字，以插件仓库的 `obsidian/src/core/revision.ts` 为准，`book2md1012` 的修订流程照此解析（兼容旧版请求中的 `lunzhu2md-fix`）。网页工作台用同一份代码生成。
 
 ```
 请用 book2md1012 按原页修订：PDF 第 N 页（印刷页 p.M）。
