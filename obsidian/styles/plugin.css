@@ -1,7 +1,67 @@
 /* 插件自己的样式：正文页码标签、当前页底色、PDF 高亮（不属于 ui/ 组件，用 Obsidian 变量） */
-/* ==== 正文 ==== */
-.markdown-source-view.mod-cm6 .cm-line.aps-current-page {
-  background-color: rgba(var(--color-yellow-rgb), 0.09);
+/* ==== 正文：当前页标示（body 上挂 aps-shade-tint / aps-shade-bar，见 main.ts applyLook） ==== */
+.aps-shade-tint .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+  background-color: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+.theme-dark.aps-shade-tint .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+  background-color: color-mix(in srgb, var(--color-accent) 9%, transparent);
+}
+.aps-shade-bar .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+/* ==== 阅读线：正文、PDF 两个窗格同一屏幕高度各一条；只显示，不拦鼠标 ==== */
+.aps-baseline-host {
+  position: relative;
+}
+.aps-baseline {
+  position: absolute;
+  z-index: 5;
+  height: 0;
+  pointer-events: none;
+}
+.aps-baseline.is-band {
+  height: 26px;
+  margin-top: -13px;
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+.theme-dark .aps-baseline.is-band {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.aps-baseline.is-line {
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.aps-baseline .aps-baseline-label {
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-family: var(--font-interface);
+}
+.aps-baseline-mark {
+  position: absolute;
+  top: -5px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.aps-baseline-mark.is-start {
+  left: 0;
+  border-left: 7px solid color-mix(in srgb, var(--color-accent) 80%, transparent);
+}
+.aps-baseline-mark.is-end {
+  right: 0;
+  border-right: 7px solid color-mix(in srgb, var(--color-accent) 80%, transparent);
+}
+/* ==== PDF 夜间模式（body 上挂 aps-night；aps-night-warm 为暖调）：只反色页面画布，文字层选区与高亮不受影响 ==== */
+.aps-night .workspace-leaf-content[data-type="pdf"] .pdfViewer .page .canvasWrapper canvas {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+.aps-night.aps-night-warm .workspace-leaf-content[data-type="pdf"] .pdfViewer .page .canvasWrapper canvas {
+  filter: invert(0.86) hue-rotate(180deg) sepia(0.25);
+}
+.aps-night .workspace-leaf-content[data-type="pdf"] .pdfViewer .page {
+  border-color: transparent;
+  box-shadow: none;
 }
 .aps-page-label {
   display: inline-block;

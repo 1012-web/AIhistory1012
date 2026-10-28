@@ -21,8 +21,6 @@ export interface ToolbarHostOptions {
   swapSide(): void;
   zoom(delta: number | null): void;
   rebind(): void;
-  /** 打开繁简通搜 */
-  find(): void;
 }
 
 const SNAP_DISTANCE = 36;
@@ -56,7 +54,6 @@ export class ToolbarHost {
       swapSide: () => options.swapSide(),
       zoom: (delta) => options.zoom(delta),
       rebind: () => options.rebind(),
-      find: () => options.find(),
       setCollapsed: (collapsed) => {
         options.saveState({ ...options.state(), collapsed });
         this.place();

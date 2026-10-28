@@ -1,6 +1,6 @@
 /*
  * 设计变量 → Obsidian 主题变量（对应表见 design/toolbar-approved.html 页尾）。
- * ui/ 组件只引用 --aps-*；网页版用 src/ui/tokens-web.css 指向它自己的取值。
+ * ui/ 组件只引用 --aps-*，取值都在这里指向 Obsidian 主题变量。
  * 设计稿里的变量名（--surface-1、--text-muted……）有几个与 Obsidian 自带变量同名但含义不同，
  * 直接同名定义会互相覆盖或成环，所以统一加 aps- 前缀。
  */

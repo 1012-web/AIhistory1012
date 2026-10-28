@@ -18,8 +18,15 @@ export interface OnboardingValues {
   autoOpen: boolean;
   /** 页内按比例跟随（关掉则只对齐到页首） */
   proportional: boolean;
+  /** 显示阅读线 */
+  showBaseline: boolean;
+  baselineStyle: "band" | "line" | "markers";
+  /** 夜间模式：跟随主题 / 开 / 关 */
+  night: "auto" | "on" | "off";
+  nightTone: "neutral" | "warm";
   pageLabels: boolean;
-  shade: boolean;
+  /** 当前页标示 */
+  shade: "tint" | "bar" | "off";
   reducedMotion: boolean;
 }
 
@@ -36,7 +43,7 @@ export interface OnboardingProps {
   initial: OnboardingValues;
   books: OnboardingBook[];
   container: HTMLElement | null;
-  /** 第 2 步那个开关的文字：插件是「打开笔记时自动开 PDF」，网页是「显示 PDF 栏」 */
+  /** 第 2 步那个开关的文字，缺省「打开笔记时自动开 PDF」 */
   autoOpenLabel?: { label: string; hint: string };
   /** 点「完成」：保存选项 */
   onFinish: (values: OnboardingValues) => void;
@@ -81,10 +88,48 @@ export function Onboarding(props: OnboardingProps): ReactElement {
       <ChoiceRow title="联动方式" value={values.mode} onChange={(value) => set("mode", value)} options={[{ value: "both", label: "双向" }, { value: "one", label: "单向" }, { value: "paused", label: "暂停" }]} />
       <CheckRow label={props.autoOpenLabel?.label ?? AUTO_OPEN_LABEL.label} hint={props.autoOpenLabel?.hint ?? AUTO_OPEN_LABEL.hint} checked={values.autoOpen} onChange={(value) => set("autoOpen", value)} />
       <CheckRow label="页内按比例跟随" hint="关掉则只对齐到页首" checked={values.proportional} onChange={(value) => set("proportional", value)} />
+      <CheckRow
+        label="显示阅读线"
+        hint="两边同一高度标出阅读线，线上的内容就是对齐的地方；高度在设置里调（20–50%）"
+        checked={values.showBaseline}
+        onChange={(value) => set("showBaseline", value)}
+      />
+      {values.showBaseline ? (
+        <ChoiceRow
+          title="阅读线样式"
+          value={values.baselineStyle}
+          onChange={(value) => set("baselineStyle", value)}
+          options={[{ value: "band", label: "淡色带" }, { value: "line", label: "细线" }, { value: "markers", label: "端点" }]}
+        />
+      ) : null}
     </div>,
     <div key="look" className="aps-ob-step">
-      <CheckRow label="实时预览里显示页码标签" checked={values.pageLabels} onChange={(value) => set("pageLabels", value)} />
-      <CheckRow label="当前页加浅底色" checked={values.shade} onChange={(value) => set("shade", value)} />
+      <p className="aps-hint">下面两项会改变正文编辑区的样子，默认打开；不需要就取消勾选，以后也能在设置里改。</p>
+      <CheckRow
+        label="实时预览里显示页码标签"
+        hint="页码标记显示成小标签，点它跳到 PDF 该页；源码模式、阅读视图不变"
+        checked={values.pageLabels}
+        onChange={(value) => set("pageLabels", value)}
+      />
+      <ChoiceRow
+        title="当前页标示"
+        value={values.shade}
+        onChange={(value) => set("shade", value)}
+        options={[{ value: "tint", label: "淡底色" }, { value: "bar", label: "左侧竖条" }, { value: "off", label: "不标示" }]}
+      />
+      <ChoiceRow
+        title="夜间模式"
+        value={values.night}
+        onChange={(value) => set("night", value)}
+        options={[{ value: "auto", label: "跟随主题" }, { value: "on", label: "开" }, { value: "off", label: "关" }]}
+      />
+      <ChoiceRow
+        title="PDF 夜间色调"
+        value={values.nightTone}
+        onChange={(value) => set("nightTone", value)}
+        options={[{ value: "neutral", label: "中性" }, { value: "warm", label: "暖调" }]}
+      />
+      <p className="aps-hint">夜间模式把 PDF 页面反色成深底浅字（图片颜色也会反过来）；跟随主题时随 Obsidian 亮暗自动切换。</p>
       <CheckRow label="动效" hint="关掉即减少动效" checked={!values.reducedMotion} onChange={(value) => set("reducedMotion", !value)} />
     </div>,
     <div key="start" className="aps-ob-step">
@@ -106,7 +151,7 @@ export function Onboarding(props: OnboardingProps): ReactElement {
           ))}
         </div>
       ) : (
-        <p className="aps-hint">库里还没有配了 PDF 的书。用 lunzhu2md 导入一本，或打开笔记后在工具条的 ⋯ 菜单里绑定 PDF。</p>
+        <p className="aps-hint">库里还没有配了 PDF 的书。用 book2md1012 导入一本，或打开笔记后在工具条的 ⋯ 菜单里绑定 PDF。</p>
       )}
     </div>
   ];
@@ -126,7 +171,7 @@ export function Onboarding(props: OnboardingProps): ReactElement {
             render={<motion.div initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={SPRING} />}
           >
             <div className="aps-ob-head">
-              <Dialog.Title className="aps-dialog-title">欢迎使用 AIhistory PDF Sync</Dialog.Title>
+              <Dialog.Title className="aps-dialog-title">欢迎使用 PDF Sync Markdown</Dialog.Title>
               <span className="aps-ob-steps">第 {step + 1} 步，共 {STEPS.length} 步：{STEPS[step]}</span>
             </div>
             <div className="aps-ob-grid">
@@ -145,7 +190,7 @@ export function Onboarding(props: OnboardingProps): ReactElement {
               </div>
               <div>
                 <Preview
-                  options={{ pdfSide: values.pdfSide, dock: values.dock, mode: values.mode, pageLabels: values.pageLabels, shade: values.shade, reducedMotion: values.reducedMotion }}
+                  options={{ pdfSide: values.pdfSide, dock: values.dock, mode: values.mode, pageLabels: values.pageLabels, shade: values.shade, baseline: values.showBaseline ? values.baselineStyle : false, night: values.night === "on" || (values.night === "auto" && document.body.classList.contains("theme-dark")) ? values.nightTone : false, reducedMotion: values.reducedMotion }}
                 />
                 <p className="aps-hint">右边是实时预览，选项一改就变</p>
               </div>

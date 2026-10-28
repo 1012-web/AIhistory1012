@@ -1,6 +1,6 @@
 /**
  * 实时预览：两窗格 + 工具条缩影（design/onboarding-settings-approved.html）。
- * 首次引导与设置页共用；随选项即时变化：PDF 左右、工具条停哪、联动方式、页码标签、当前页底色。
+ * 首次引导与设置页共用；随选项即时变化：PDF 左右、工具条停哪、联动方式、页码标签、当前页标示、阅读线样式、夜间色调。
  * 动效用 Motion 弹簧 420/30，减少动效时瞬切。
  */
 import { LayoutGroup, MotionConfig, motion } from "motion/react";
@@ -15,7 +15,12 @@ export interface PreviewOptions {
   dock: DockChoice;
   mode: SyncMode;
   pageLabels: boolean;
-  shade: boolean;
+  /** 当前页标示：淡底色 / 左侧竖条 / 不标示 */
+  shade: "tint" | "bar" | "off";
+  /** 阅读线样式；false 不画 */
+  baseline?: "band" | "line" | "markers" | false;
+  /** 夜间模式生效时的色调；false 不反色 */
+  night?: "neutral" | "warm" | false;
   reducedMotion: boolean;
 }
 
@@ -58,7 +63,7 @@ export function Preview({ options, height = 150, className }: { options: Preview
   }
 
   const pdfPane = (
-    <motion.div key="pdf" layout className="aps-pv-pane" data-pane="pdf" transition={SPRING}>
+    <motion.div key="pdf" layout className={`aps-pv-pane${options.night ? ` is-night is-${options.night}` : ""}`} data-pane="pdf" transition={SPRING}>
       <span className="aps-pv-head">PDF</span>
       <Lines widths={["80%", "100%", "90%", "60%"]} />
     </motion.div>
@@ -67,7 +72,7 @@ export function Preview({ options, height = 150, className }: { options: Preview
     <motion.div key="md" layout className="aps-pv-pane" data-pane="markdown" transition={SPRING}>
       <span className="aps-pv-head">正文</span>
       <Lines widths={["100%"]} />
-      <div className={`aps-pv-tint${options.shade ? " is-on" : ""}`}>
+      <div className={`aps-pv-tint is-${options.shade}`}>
         {options.pageLabels ? <span className="aps-pv-chip">37 · p.112</span> : null}
         <Lines widths={["92%", "85%"]} />
       </div>
@@ -80,6 +85,11 @@ export function Preview({ options, height = 150, className }: { options: Preview
       <LayoutGroup>
         <div ref={boxRef} className={`aps-preview ${className ?? ""}`} style={{ height }} data-side={options.pdfSide} data-dock={options.dock}>
           {options.pdfSide === "left" ? [pdfPane, mdPane] : [mdPane, pdfPane]}
+          {options.baseline ? (
+            <div className={`aps-pv-baseline is-${options.baseline}`} aria-hidden="true">
+              {options.baseline === "line" ? <span className="aps-baseline-label">阅读线</span> : null}
+            </div>
+          ) : null}
           <motion.div
             ref={barRef}
             className="aps-pv-bar"

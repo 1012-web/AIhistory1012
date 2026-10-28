@@ -1,6 +1,6 @@
 /**
  * frontmatter 的 `pdf` 字段（docs/anchors.md 第一节：`pdf: "[[文件名.pdf]]"`）：读、写、解析内链。纯文本操作。
- * 插件里写 frontmatter 由 Obsidian 的 processFrontMatter 做；网页工作台用这里的 setFrontmatterPdf。
+ * 插件里写 frontmatter 由 Obsidian 的 processFrontMatter 做；setFrontmatterPdf 是不依赖 Obsidian 的纯文本写法（测试用）。
  */
 
 /** `[[x.pdf]]`、`[[x.pdf|别名]]`、`![[x.pdf]]`、`x.pdf` 都认；空值返回 null */

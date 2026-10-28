@@ -2,7 +2,7 @@
   "name": "aihistory-pdf-sync",
   "version": "0.1.1",
   "private": true,
-  "description": "AIhistory PDF Sync: page-anchored Markdown and PDF side by side",
+  "description": "PDF Sync Markdown: page-anchored Markdown and PDF side by side",
   "scripts": {
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",

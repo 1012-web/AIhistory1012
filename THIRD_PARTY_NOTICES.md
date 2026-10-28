@@ -41,15 +41,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Better Search Result Views（1012-web/better-search-result-views，MIT）
-
-`obsidian/src/core/variants/` 下三个文件原样拷自 [Better Search Result Views](https://github.com/1012-web/better-search-result-views)（同一作者，MIT，提交 b74e1d7）：
-`variants.ts`（异体折叠表）、`normalize.ts`（单字归一化）、`unihan-variants.ts`（由 Unicode Unihan 数据库 kTraditionalVariant / kSimplifiedVariant、kZVariant、kSemanticVariant 生成的对照表）。
-PDF 繁简通搜用它们，保证与该插件认的「同一个字」一致。Unihan 数据适用 [Unicode 许可](https://www.unicode.org/license.txt)。
-
 ## 随包分发的运行库
 
-Obsidian 插件把下列库打包进 `main.js`，网页工作台也用同一套版本（均为 MIT 许可）。许可原文如下。
+Obsidian 插件把下列库打包进 `main.js`（均为 MIT 许可）。许可原文如下。
 
 ### react 19.3.1 (MIT)
 

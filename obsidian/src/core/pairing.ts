@@ -1,6 +1,6 @@
 /**
  * 配对用到的纯数据：book.json 的形状、文字层副本的命名、在一组 PDF 里挑唯一的那份。
- * 插件的 pairing.ts（连着 Obsidian 的 TFile）与网页工作台的 server/book.ts 都用这里。
+ * 插件的 pairing.ts（连着 Obsidian 的 TFile）用这里。
  */
 export const DATA_DIR = "_数据";
 export const BOOK_JSON = `${DATA_DIR}/book.json`;

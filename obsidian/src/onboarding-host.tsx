@@ -64,8 +64,12 @@ export class OnboardingHost {
       mode: syncModeOf(settings),
       autoOpen: settings.autoOpen,
       proportional: settings.proportional,
+      showBaseline: settings.showBaseline,
+      baselineStyle: settings.baselineStyle,
+      night: settings.nightMode,
+      nightTone: settings.nightTone,
       pageLabels: settings.pageLabels,
-      shade: settings.shadeCurrentPage,
+      shade: settings.shadeStyle,
       reducedMotion: settings.reducedMotion
     };
   }
@@ -76,8 +80,12 @@ export class OnboardingHost {
     applySyncMode(settings, values.mode);
     settings.autoOpen = values.autoOpen;
     settings.proportional = values.proportional;
+    settings.showBaseline = values.showBaseline;
+    settings.baselineStyle = values.baselineStyle;
+    settings.nightMode = values.night;
+    settings.nightTone = values.nightTone;
     settings.pageLabels = values.pageLabels;
-    settings.shadeCurrentPage = values.shade;
+    settings.shadeStyle = values.shade;
     settings.reducedMotion = values.reducedMotion;
     // 换边要把已开的 PDF 挪过去：交给控制器（它自己改设置并保存）
     if (values.pdfSide !== settings.pdfSide) await this.plugin.controller.swapSide();

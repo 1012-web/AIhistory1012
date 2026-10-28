@@ -1,12 +1,13 @@
 /**
  * 联动控制器：当前这本书、正文窗格、PDF 窗格三者的会话。
  *
- * 跟随：正文 → PDF 按页、页内按比例，基准线在视口距顶 35%；双向联动时 PDF → 正文（可跨文件）。
+ * 跟随：正文 → PDF 按页、页内按比例，基准线在视口距顶 35%（可调，并可在两窗格画出来）；双向联动时 PDF → 正文（可跨文件）。
  * 防回环：领跑方取最近有输入（滚轮、按键、指针）的窗格；程序滚动后对侧静默约 200 毫秒。
  * 手动翻 PDF 时 PDF 领跑，正文不再带动它（跟随暂停）；回到正文一有输入就恢复。
  */
 import { EditorView } from "@codemirror/view";
 import { FileSystemAdapter, MarkdownView, Notice, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { BaselineLine } from "./baseline-line";
 import { pageAtOffset, segmentForPage, segmentForPageOrGap } from "./core/anchors";
 import { fileForPage, printedLabel, suggestedPageRange } from "./core/book-index";
 import { setCurrentPage } from "./editor-ext";
@@ -53,6 +54,9 @@ export class SyncController {
   readonly toolbar: ToolbarHost;
   private markdownDisposers: Disposer[] = [];
   private pdfDisposers: Disposer[] = [];
+  /** 两个窗格各一条阅读线（设置「显示阅读线」） */
+  private markdownLine: BaselineLine | null = null;
+  private pdfLine: BaselineLine | null = null;
   private generation = 0;
   private markdownFrame: number | null = null;
   private pdfFrame: number | null = null;
@@ -80,13 +84,9 @@ export class SyncController {
         this.refreshStatus();
       },
       swapSide: () => void this.swapSide(),
-      rebind: () => this.chooseAndBind(),
-      find: () => this.onFind?.()
+      rebind: () => this.chooseAndBind()
     });
   }
-
-  /** 工具条「搜」：由插件主体接到繁简通搜 */
-  onFind: (() => void) | null = null;
 
   /** 暂停跟随：记在设置里，重启后照旧 */
   get paused(): boolean {
@@ -189,6 +189,46 @@ export class SyncController {
     this.listen(this.markdownDisposers, root, "keyup", (event) => {
       if ((event as KeyboardEvent).shiftKey) this.scheduleSelection();
     }, false);
+    this.markdownLine = new BaselineLine(view.containerEl, () => scrollerOf(view), () => this.ratioFor("markdown"), () => this.settings.baselineStyle, () => this.positionBaselines());
+    this.refreshBaselines();
+  }
+
+  /** 按设置显示或收起两条阅读线，并按当前布局与样式重算 */
+  private refreshBaselines(): void {
+    const show = this.settings.showBaseline && !!this.book;
+    for (const line of [this.markdownLine, this.pdfLine]) {
+      if (!line) continue;
+      if (show) line.show();
+      else line.hide();
+    }
+  }
+
+  /** 任一窗格尺寸变了：两条线一起按新的重叠区间重算（只重算一边会错开） */
+  private positionBaselines(): void {
+    this.markdownLine?.position();
+    this.pdfLine?.position();
+  }
+
+  /**
+   * 某一侧实际用的基准线比例。两窗格上下有重叠时，取重叠区间里「设置的比例」处的同一屏幕高度，
+   * 再折回各自滚动容器的比例：两边按同一条水平线对齐，画出的线也连成一条（两窗格顶部常常不齐，
+   * 比如工具条停在正文顶部）。没有重叠（上下分栏）或量不到时，用设置值。
+   */
+  ratioFor(side: Side): number {
+    const base = this.settings.baseline;
+    const view = this.markdownView;
+    const markdown = view ? scrollerOf(view) : null;
+    const pdf = this.pdf?.container ?? null;
+    if (!markdown || !pdf) return base;
+    const a = markdown.getBoundingClientRect();
+    const b = pdf.getBoundingClientRect();
+    const top = Math.max(a.top, b.top);
+    const bottom = Math.min(a.bottom, b.bottom);
+    if (bottom - top < 40) return base;
+    const own = side === "markdown" ? a : b;
+    if (own.height <= 0) return base;
+    const y = top + (bottom - top) * base;
+    return Math.min(0.95, Math.max(0.05, (y - own.top) / own.height));
   }
 
   private attachPdf(leaf: WorkspaceLeaf): void {
@@ -220,8 +260,12 @@ export class SyncController {
           bus.off("scalechanging", status);
         });
       }
+      // viewer 容器要等 PDF 加载好才量得到
+      this.refreshBaselines();
       this.refreshStatus();
     });
+    this.pdfLine = new BaselineLine(root, () => pane.container, () => this.ratioFor("pdf"), () => this.settings.baselineStyle, () => this.positionBaselines());
+    this.refreshBaselines();
     this.toolbar.place();
   }
 
@@ -232,10 +276,14 @@ export class SyncController {
 
   private disposeMarkdown(): void {
     for (const dispose of this.markdownDisposers.splice(0)) dispose();
+    this.markdownLine?.hide();
+    this.markdownLine = null;
   }
 
   private disposePdf(): void {
     for (const dispose of this.pdfDisposers.splice(0)) dispose();
+    this.pdfLine?.hide();
+    this.pdfLine = null;
   }
 
   private detachMarkdown(): void {
@@ -258,6 +306,8 @@ export class SyncController {
     if (this.pdf && !this.leafAlive(this.pdf.leaf)) this.detachPdf();
     if (this.markdownLeaf && !this.leafAlive(this.markdownLeaf)) this.detachMarkdown();
     else if (this.markdownLeaf && this.book) this.toolbar.place();
+    // 切换阅读 / 编辑视图、拖动分栏都会触发：滚动容器可能换了，线要重量
+    this.refreshBaselines();
   }
 
   private leafAlive(leaf: WorkspaceLeaf): boolean {
@@ -325,7 +375,7 @@ export class SyncController {
       this.refreshStatus();
       return;
     }
-    const point = pane.pointAtBaseline(this.settings.baseline);
+    const point = pane.pointAtBaseline(this.ratioFor("pdf"));
     this.detachPdf();
     pane.leaf.detach();
     const fresh = await this.ensurePdf();
@@ -333,7 +383,7 @@ export class SyncController {
       await fresh.waitReady();
       await delay(100);
       this.quiet.pdf.hold(this.settings.quietMs);
-      fresh.scrollTo(point, this.settings.baseline);
+      fresh.scrollTo(point, this.ratioFor("pdf"));
     }
     this.refreshStatus();
   }
@@ -353,16 +403,16 @@ export class SyncController {
     const view = this.markdownView;
     const pane = this.pdf;
     if (!view || !pane?.ready || (this.paused && !force)) return;
-    const point = markdownPointAt(view, this.settings.baseline);
+    const point = markdownPointAt(view, this.ratioFor("markdown"));
     if (!point) return;
     this.quiet.pdf.hold(this.settings.quietMs);
-    pane.scrollTo({ page: point.page, fraction: this.settings.proportional ? point.fraction : 0 }, this.settings.baseline);
+    pane.scrollTo({ page: point.page, fraction: this.settings.proportional ? point.fraction : 0 }, this.ratioFor("pdf"));
   }
 
   private onPdfScroll(): void {
     const pane = this.pdf;
     if (!pane) return;
-    const point = pane.pointAtBaseline(this.settings.baseline);
+    const point = pane.pointAtBaseline(this.ratioFor("pdf"));
     this.refreshStatus(point?.page);
     if (!point || this.quiet.pdf.quiet || this.paused || this.leader.leader !== "pdf" || !this.settings.bidirectional) return;
     void this.followPdf(this.settings.proportional ? point : { page: point.page, fraction: 0 });
@@ -385,12 +435,12 @@ export class SyncController {
     const current = this.markdownView;
     if (!current) return;
     this.quiet.markdown.hold(this.settings.quietMs);
-    if (scrollMarkdownTo(current, point, this.settings.baseline)) {
+    if (scrollMarkdownTo(current, point, this.ratioFor("markdown"))) {
       // CodeMirror 对没量过的行用估计高度，滚过去后再校一次
       window.requestAnimationFrame(() => {
         this.quiet.markdown.hold(this.settings.quietMs);
         const latest = this.markdownView;
-        if (latest) scrollMarkdownTo(latest, point, this.settings.baseline);
+        if (latest) scrollMarkdownTo(latest, point, this.ratioFor("markdown"));
         this.updateCurrentFromMarkdown();
       });
     }
@@ -400,13 +450,13 @@ export class SyncController {
   private updateCurrentFromMarkdown(): void {
     const view = this.markdownView;
     if (!view) return;
-    const point = markdownPointAt(view, this.settings.baseline);
+    const point = markdownPointAt(view, this.ratioFor("markdown"));
     if (point) {
       this.currentPage = point.page;
       this.currentPrinted = point.printed;
       this.currentChapter = this.chapterAt(view, point.offset);
     }
-    this.setShade(this.settings.shadeCurrentPage && point ? point.page : null);
+    this.setShade(this.settings.shadeStyle !== "off" && point ? point.page : null);
     this.refreshStatus();
   }
 
@@ -432,10 +482,12 @@ export class SyncController {
     const count = pane?.pageCount || Number.MAX_SAFE_INTEGER;
     const target = Math.min(Math.max(1, page), count);
     const point = { page: target, fraction };
-    const ratio = fraction === 0 ? 0.02 : this.settings.baseline;
+    // 跳到页首时贴顶（0.02），否则停在两边共用的基准线上
+    const pdfRatio = fraction === 0 ? 0.02 : this.ratioFor("pdf");
+    const markdownRatio = fraction === 0 ? 0.02 : this.ratioFor("markdown");
     this.quiet.pdf.hold(this.settings.quietMs * 2);
     this.quiet.markdown.hold(this.settings.quietMs * 2);
-    pane?.scrollTo(point, ratio);
+    pane?.scrollTo(point, pdfRatio);
     const entry = fileForPage(book.index, target, this.markdownView?.file?.path ?? null);
     const leaf = this.markdownLeaf;
     if (entry && leaf && this.markdownView?.file?.path !== entry.path) {
@@ -447,15 +499,15 @@ export class SyncController {
     }
     const view = this.markdownView;
     if (view) {
-      scrollMarkdownTo(view, point, ratio);
+      scrollMarkdownTo(view, point, markdownRatio);
       window.requestAnimationFrame(() => {
         this.quiet.markdown.hold(this.settings.quietMs);
         const latest = this.markdownView;
-        if (latest) scrollMarkdownTo(latest, point, ratio);
+        if (latest) scrollMarkdownTo(latest, point, markdownRatio);
       });
     }
     this.setCurrent(target);
-    this.setShade(this.settings.shadeCurrentPage ? target : null);
+    this.setShade(this.settings.shadeStyle !== "off" ? target : null);
     this.refreshStatus(target);
   }
 
@@ -509,6 +561,7 @@ export class SyncController {
   settingsChanged(): void {
     this.toolbar.place();
     this.updateCurrentFromMarkdown();
+    this.refreshBaselines();
   }
 
   // ---------- 逐字高亮 ----------
@@ -565,7 +618,7 @@ export class SyncController {
       page: at.page,
       query: text.slice(from, to),
       context: { before: text.slice(Math.max(0, from - 40), from), after: text.slice(to, to + 40), progress }
-    }, true, this.settings.baseline);
+    }, true, this.ratioFor("pdf"));
     if (shown) this.onPractice?.("highlight");
     return shown;
   }
@@ -615,7 +668,7 @@ export class SyncController {
     this.quiet.markdown.hold(this.settings.quietMs * 2);
     if (modeOf(view) === "preview") {
       const fraction = segment && segment.to > segment.from ? (from - segment.from) / (segment.to - segment.from) : 0;
-      scrollMarkdownTo(view, { page, fraction }, this.settings.baseline);
+      scrollMarkdownTo(view, { page, fraction }, this.ratioFor("markdown"));
       return true;
     }
     const editor = view.editor;
@@ -623,10 +676,10 @@ export class SyncController {
     const cm = editorViewOf(view);
     if (cm) {
       const height = cm.scrollDOM.clientHeight;
-      cm.dispatch({ effects: EditorView.scrollIntoView(from, { y: "start", yMargin: height * this.settings.baseline }) });
+      cm.dispatch({ effects: EditorView.scrollIntoView(from, { y: "start", yMargin: height * this.ratioFor("markdown") }) });
     }
     this.setCurrent(page);
-    this.setShade(this.settings.shadeCurrentPage ? page : null);
+    this.setShade(this.settings.shadeStyle !== "off" ? page : null);
     this.refreshStatus(page);
     return true;
   }
@@ -664,7 +717,7 @@ export class SyncController {
       const context = inner === -1 ? { before: link.ctx, after: link.ctx } : { before: link.ctx.slice(0, inner), after: link.ctx.slice(inner + link.text.length) };
       this.quiet.pdf.hold(this.settings.quietMs * 2);
       pane.scrollTo({ page: target, fraction: 0 }, 0.02);
-      await this.highlighter.show(pane, { page: target, query: link.text, context }, true, this.settings.baseline);
+      await this.highlighter.show(pane, { page: target, query: link.text, context }, true, this.ratioFor("pdf"));
     }
     if (!selected) new Notice(`第 ${target} 页里没找到「${link.text}」`);
     return selected;
@@ -777,12 +830,12 @@ export class SyncController {
   /** 正文基准线处的页与页内比例（状态显示、测试用） */
   markdownPoint(): PagePoint | null {
     const view = this.markdownView;
-    return view ? markdownPointAt(view, this.settings.baseline) : null;
+    return view ? markdownPointAt(view, this.ratioFor("markdown")) : null;
   }
 
   /** PDF 基准线处的页与页内比例 */
   pdfPoint(): PagePoint | null {
-    return this.pdf?.pointAtBaseline(this.settings.baseline) ?? null;
+    return this.pdf?.pointAtBaseline(this.ratioFor("pdf")) ?? null;
   }
 
   get scroller(): HTMLElement | null {

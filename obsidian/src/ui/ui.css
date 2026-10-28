@@ -1,6 +1,6 @@
 /*
  * ui/ 组件的样式：工具条、溢出菜单、拖动停靠区、对话框。
- * 只引用 --aps-* 设计变量（插件在 styles/tokens-obsidian.css 里指向 Obsidian 主题，网页版用 tokens-web.css）。
+ * 只引用 --aps-* 设计变量（取值在 styles/tokens-obsidian.css 里指向 Obsidian 主题）。
  * 规格照 design/toolbar-approved.html 页尾「实现要点」。按钮选择器写得具体些，盖过宿主（Obsidian）的默认按钮样式。
  */
 
@@ -548,8 +548,55 @@ button.aps-choice-item[data-pressed] {
   border-radius: 3px;
   transition: background-color 0.2s;
 }
-.aps-pv-tint.is-on {
+/* 预览里的当前页标示、阅读线与夜间色调（与插件的三种样式一一对应） */
+.aps-pv-tint.is-tint {
   background: var(--aps-bg-accent);
+}
+.aps-pv-tint.is-bar {
+  border-radius: 0;
+  box-shadow: inset 2px 0 0 var(--aps-text-accent);
+}
+.aps-pv-pane.is-night {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+.aps-pv-pane.is-night.is-warm {
+  filter: invert(0.86) hue-rotate(180deg) sepia(0.25);
+}
+.aps-pv-baseline {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 35%;
+  height: 0;
+  pointer-events: none;
+}
+.aps-pv-baseline.is-band {
+  height: 14px;
+  margin-top: -7px;
+  background: var(--aps-bg-accent);
+  opacity: 0.7;
+}
+.aps-pv-baseline.is-line {
+  border-top: 1px solid var(--aps-text-accent);
+}
+.aps-pv-baseline.is-markers {
+  border-left: 5px solid var(--aps-text-accent);
+  border-right: 5px solid var(--aps-text-accent);
+  height: 6px;
+  margin-top: -3px;
+}
+.aps-baseline-label {
+  position: absolute;
+  right: 0;
+  top: 0;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--aps-text-muted);
+  background: var(--aps-surface-2);
+  white-space: nowrap;
 }
 .aps-pv-chip {
   align-self: flex-start;
@@ -741,74 +788,4 @@ button.aps-button.aps-ob-skip {
 }
 .aps-practice-row button.aps-button {
   font-size: 12px;
-}
-
-/* ---- 繁简通搜：查找条（挂在 PDF 窗格右上角） ---- */
-.aps-find {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: var(--aps-layer-toolbar);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 32px;
-  padding: 0 4px 0 6px;
-  box-sizing: border-box;
-  border: 1px solid var(--aps-border-strong);
-  border-radius: 8px;
-  background: var(--aps-surface-2);
-  box-shadow: var(--aps-shadow);
-  color: var(--aps-text-primary);
-  font-family: var(--aps-font);
-  font-size: 12px;
-}
-.aps-find input.aps-find-input {
-  width: 160px;
-  height: 24px;
-  margin: 0;
-  padding: 0 6px;
-  border: 1px solid var(--aps-border);
-  border-radius: 6px;
-  background: var(--aps-surface-1);
-  color: var(--aps-text-primary);
-  font: inherit;
-  box-shadow: none;
-}
-.aps-find input.aps-find-input:focus {
-  border-color: var(--aps-border-accent);
-  outline: none;
-}
-.aps-find-count {
-  min-width: 7em;
-  color: var(--aps-text-muted);
-  white-space: nowrap;
-}
-.aps-find-count.aps-find-miss {
-  color: var(--aps-text-secondary);
-}
-.aps-find .aps-ib {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--aps-text-secondary);
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
-}
-.aps-find .aps-ib:hover:not(:disabled) {
-  background: var(--aps-bg-accent);
-  color: var(--aps-text-accent);
-}
-.aps-find .aps-ib:disabled {
-  opacity: 0.4;
-  cursor: default;
 }

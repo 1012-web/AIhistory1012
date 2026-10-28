@@ -1,7 +1,7 @@
 /**
  * 逐字高亮：选中正文 → 在 PDF 文字层里找到这些字、画高亮框；在 PDF 上选字 → 交给调用方在正文里选中。
  * 匹配与量框用移植自 PDF Collation 的代码（collation/ 目录，MIT）。
- * 只依赖浏览器 DOM：PDF 窗格的能力由宿主经 HighlightHost 注入（插件是 PdfPane，网页是 pdf.js 查看器）。
+ * 只依赖浏览器 DOM：PDF 窗格的能力由宿主经 HighlightHost 注入（插件里是 PdfPane）。
  */
 import { matchSegmentSlices, type SelectionContext } from "./collation/compare";
 import { computeSliceHighlightBoxes, type HighlightBox } from "./collation/pdf-dom";
@@ -26,7 +26,7 @@ export interface HighlightHost {
 }
 
 export interface HighlighterOptions {
-  /** 在 parent 里建一个带 cls 类名的 div 并返回（插件用 Obsidian 的 createDiv，网页用 document.createElement） */
+  /** 在 parent 里建一个带 cls 类名的 div 并返回（插件用 Obsidian 的 createDiv） */
   createDiv: (parent: HTMLElement, cls: string) => HTMLElement;
   layerClass?: string;
   boxClass?: string;

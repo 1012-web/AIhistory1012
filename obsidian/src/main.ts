@@ -1,18 +1,15 @@
-import { MarkdownView, Notice, Plugin, TFile } from "obsidian";
+import { MarkdownView, Plugin, TFile } from "obsidian";
 import { SyncController } from "./controller";
 import { editorExtensions, refreshLabels } from "./editor-ext";
 import { parseSuspectLink, PROTOCOL_ACTION } from "./core/link";
 import { editorViewOf } from "./markdown-pane";
 import { OnboardingHost } from "./onboarding-host";
-import { FindHost } from "./find-host";
-import { PdfPane } from "./pdf-view";
-import { mergeSettings, PdfSyncSettingTab, type PdfSyncSettings } from "./settings";
+import { mergeSettings, nightActive, PdfSyncSettingTab, type PdfSyncSettings } from "./settings";
 
 export default class AIhistoryPdfSync extends Plugin {
   declare settings: PdfSyncSettings;
   controller!: SyncController;
   onboarding!: OnboardingHost;
-  find!: FindHost;
   private settingTab: PdfSyncSettingTab | null = null;
 
   async onload(): Promise<void> {
@@ -27,24 +24,13 @@ export default class AIhistoryPdfSync extends Plugin {
       statusBar
     });
     this.onboarding = new OnboardingHost(this);
-    this.find = new FindHost({
-      settings: () => this.settings,
-      pane: () => {
-        const leaf = this.app.workspace.getMostRecentLeaf();
-        if (leaf?.view.getViewType() === "pdf") return new PdfPane(leaf);
-        return this.controller.pdf;
-      },
-      highlighter: this.controller.highlighter
-    });
-    this.controller.onFind = () => {
-      if (!this.find.open()) new Notice("没有打开的 PDF");
-    };
-    // 只在 PDF 窗格里接管 Ctrl/⌘+F（设置里可关）；笔记里的 Ctrl+F 不碰
-    this.registerDomEvent(window, "keydown", (event) => this.find.onKeyDown(event, this.app.workspace.getMostRecentLeaf()), { capture: true });
     this.controller.onBookAttached = () => this.onboarding.onBookAttached();
     this.controller.onPractice = (id) => this.onboarding.practiced(id);
     this.settingTab = new PdfSyncSettingTab(this.app, this);
     this.addSettingTab(this.settingTab);
+    // 夜间模式：跟随主题时，Obsidian 换亮暗主题会触发 css-change
+    this.applyLook();
+    this.registerEvent(this.app.workspace.on("css-change", () => this.applyLook()));
 
     this.registerEditorExtension(editorExtensions({
       labels: () => this.settings.pageLabels,
@@ -109,11 +95,6 @@ export default class AIhistoryPdfSync extends Plugin {
       checkCallback: (checking) => this.withBook(checking, () => void this.controller.openPagemarkPreview())
     });
     this.addCommand({
-      id: "find-in-pdf",
-      name: "繁简通搜：在 PDF 里搜（繁体、简体、异体都算同一个字）",
-      callback: () => this.controller.onFind?.()
-    });
-    this.addCommand({
       id: "open-onboarding",
       name: "重新打开引导",
       callback: () => this.onboarding.show()
@@ -132,6 +113,7 @@ export default class AIhistoryPdfSync extends Plugin {
   }
 
   onunload(): void {
+    document.body.removeClass("aps-night", "aps-night-warm", "aps-shade-tint", "aps-shade-bar");
     this.onboarding?.dispose();
     this.controller?.dispose();
   }
@@ -159,7 +141,21 @@ export default class AIhistoryPdfSync extends Plugin {
     await this.saveData(this.settings);
   }
 
+  /**
+   * 外观挂到 body 的类名上，样式见 styles/plugin.css：
+   * aps-night（夜间模式生效，PDF 页面反色）、aps-night-warm（暖调）、aps-shade-tint / aps-shade-bar（当前页标示）
+   */
+  applyLook(): void {
+    const body = document.body;
+    const night = nightActive(this.settings.nightMode, body.hasClass("theme-dark"));
+    body.toggleClass("aps-night", night);
+    body.toggleClass("aps-night-warm", night && this.settings.nightTone === "warm");
+    body.toggleClass("aps-shade-tint", this.settings.shadeStyle === "tint");
+    body.toggleClass("aps-shade-bar", this.settings.shadeStyle === "bar");
+  }
+
   settingsChanged(): void {
+    this.applyLook();
     this.controller.settingsChanged();
     this.settingTab?.refresh();
     // 标签开关：让各编辑器重画

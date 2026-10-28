@@ -98,7 +98,8 @@ describe("首次引导", function () {
     await settle(1500);
     expect(await dialogOpen()).toBe(false);
     const saved = await settings();
-    expect(saved).toMatchObject({ pdfSide: "right", bidirectional: false, paused: false, proportional: false, pageLabels: false, onboarded: true });
+    // 页码标签、阅读线默认开，当前页标示默认淡底色、阅读线默认淡色带、夜间跟随主题：取消了页码标签就关，没动的保持默认
+    expect(saved).toMatchObject({ pdfSide: "right", bidirectional: false, paused: false, proportional: false, pageLabels: false, shadeStyle: "tint", showBaseline: true, baselineStyle: "band", nightMode: "auto", nightTone: "neutral", onboarded: true });
     expect(saved.toolbar).toMatchObject({ mode: "docked", dock: "pdf" });
     const order = await browser.executeObsidian(({ app }, id) => {
       const controller = (app as any).plugins.plugins[id].controller;
@@ -125,7 +126,7 @@ describe("首次引导", function () {
         popout: root.ownerDocument !== document
       };
     });
-    expect(page.title).toContain("AIhistory PDF Sync");
+    expect(page.title).toContain("PDF Sync Markdown");
     expect(page.preview).toBe("right");
     expect(page.practice).toBe(2);
     for (const heading of ["布局", "联动", "外观", "上手", "高级", "跟随基准线"]) expect(page.text).toContain(heading);

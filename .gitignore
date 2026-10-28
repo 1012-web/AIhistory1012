@@ -10,7 +10,6 @@ images/
 !/manifest.json
 !/versions.json
 !obsidian/**/*.json
-!web/*.json
 !tests/fixtures/**
 tests/fixtures/**/*.pdf
 # 例外：随仓库分发的 Obsidian 库骨架（这些 .json 是配置，不是文献数据）
@@ -21,12 +20,9 @@ tests/fixtures/**/*.pdf
 tests/fixtures/**/__pycache__/
 tests/fixtures/**/*.pyc
 
-# Obsidian 插件与网页工作台
+# Obsidian 插件
 node_modules/
 dist/
 *.log
 .scratch/
 .obsidian-cache/
-
-# 预览站：主页手写，site/demo/ 是 web/ 静态导出的产物（npm run demo 生成，由 CI 现造）
-site/demo/

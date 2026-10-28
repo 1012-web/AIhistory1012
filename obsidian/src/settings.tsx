@@ -6,7 +6,6 @@
 import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type AIhistoryPdfSync from "./main";
 import { mountReact } from "./react-mount";
-import { DEFAULT_VARIANT_OPTIONS } from "./core/pdf-search";
 import { GettingStarted, SettingsHeader, type DockChoice, type PreviewOptions, type SyncMode } from "./ui";
 
 export type ToolbarMode = "docked" | "floating";
@@ -23,6 +22,19 @@ export interface ToolbarState {
   collapsed: boolean;
 }
 
+export type NightMode = "auto" | "on" | "off";
+/** PDF 夜间色调：neutral 中性反色；warm 反色后略偏暖 */
+export type NightTone = "neutral" | "warm";
+/** 阅读线样式：band 淡色带；line 细线加小标签；markers 只在两端各标一对小三角 */
+export type BaselineStyle = "band" | "line" | "markers";
+/** 当前页标示：tint 极淡底色；bar 左侧竖条；off 不标示 */
+export type ShadeStyle = "tint" | "bar" | "off";
+
+/** 夜间模式此刻是否生效（auto 时看 Obsidian 当前是不是深色主题） */
+export function nightActive(mode: NightMode, darkTheme: boolean): boolean {
+  return mode === "on" || (mode === "auto" && darkTheme);
+}
+
 export interface PdfSyncSettings {
   /** 基准线在视口距顶的比例（设置页按 20–50% 调） */
   baseline: number;
@@ -36,16 +48,17 @@ export interface PdfSyncSettings {
   autoOpen: boolean;
   /** 页内按比例跟随；关掉则只对齐到页首 */
   proportional: boolean;
+  /** 在正文与 PDF 两个窗格里画出阅读线（两边按这条线对齐；只显示、不拦鼠标） */
+  showBaseline: boolean;
+  baselineStyle: BaselineStyle;
   pdfSide: "left" | "right";
-  shadeCurrentPage: boolean;
+  /** 当前页在正文里怎么标示（实时预览与源码模式） */
+  shadeStyle: ShadeStyle;
   pageLabels: boolean;
   wordHighlight: boolean;
-  /** 繁简通搜：PDF 窗格里的 Ctrl/⌘+F 改开繁简通搜（默认开；原生查找只认字面） */
-  findTakeover: boolean;
-  /** 繁简通搜用的三档 Unihan 对照表（默认值照 Better Search Result Views） */
-  unihanTradSimp: boolean;
-  unihanZ: boolean;
-  unihanSemantic: boolean;
+  /** 夜间模式：auto 跟随 Obsidian 的深色主题；on 总是开；off 总是关。开着时 PDF 页面反色、插件元素用深色 */
+  nightMode: NightMode;
+  nightTone: NightTone;
   /** 减少动效（另外自动尊重系统的「减少动态效果」） */
   reducedMotion: boolean;
   toolbar: ToolbarState;
@@ -62,25 +75,30 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   paused: false,
   autoOpen: true,
   proportional: true,
+  showBaseline: true,
+  baselineStyle: "band",
   pdfSide: "left",
-  shadeCurrentPage: true,
+  // 这两项会改动 Obsidian 原生编辑区的样子：默认开，引导第 3 步写明效果，用户可在那里或设置里关掉
+  shadeStyle: "tint",
   pageLabels: true,
   wordHighlight: true,
+  nightMode: "auto",
+  nightTone: "neutral",
   reducedMotion: false,
-  findTakeover: true,
-  unihanTradSimp: DEFAULT_VARIANT_OPTIONS.unihanTradSimp,
-  unihanZ: DEFAULT_VARIANT_OPTIONS.unihanZ,
-  unihanSemantic: DEFAULT_VARIANT_OPTIONS.unihanSemantic,
   toolbar: { mode: "docked", dock: "markdown", x: 120, y: 120, collapsed: false },
   onboarded: false,
   practice: { highlight: false, pageEdit: false }
 };
 
 export function mergeSettings(raw: unknown): PdfSyncSettings {
-  const data = (raw && typeof raw === "object" ? raw : {}) as Partial<PdfSyncSettings>;
+  const data = (raw && typeof raw === "object" ? raw : {}) as Partial<PdfSyncSettings> & { shadeCurrentPage?: boolean };
+  // 0.1.1 以前是开关 shadeCurrentPage：关着的换成「不标示」，开着的用新默认
+  const { shadeCurrentPage, ...rest } = data;
+  const shadeStyle: ShadeStyle = rest.shadeStyle ?? (shadeCurrentPage === false ? "off" : DEFAULT_SETTINGS.shadeStyle);
   return {
     ...DEFAULT_SETTINGS,
-    ...data,
+    ...rest,
+    shadeStyle,
     toolbar: { ...DEFAULT_SETTINGS.toolbar, ...(data.toolbar ?? {}) },
     practice: { ...DEFAULT_SETTINGS.practice, ...(data.practice ?? {}) }
   };
@@ -111,7 +129,9 @@ export function previewOf(settings: PdfSyncSettings): PreviewOptions {
     dock: dockChoiceOf(settings.toolbar),
     mode: syncModeOf(settings),
     pageLabels: settings.pageLabels,
-    shade: settings.shadeCurrentPage,
+    shade: settings.shadeStyle,
+    baseline: settings.showBaseline ? settings.baselineStyle : false,
+    night: nightActive(settings.nightMode, document.body.hasClass("theme-dark")) ? settings.nightTone : false,
     reducedMotion: settings.reducedMotion
   };
 }
@@ -124,17 +144,17 @@ export const PRACTICE: Array<{ id: PracticeId; label: string; hint: string }> = 
 /** 声明式设置的键：设置里的字段，加几个换算出来的虚拟键 */
 type ControlKey =
   | "pdfSide"
-  | "findTakeover"
-  | "unihanTradSimp"
-  | "unihanZ"
-  | "unihanSemantic"
   | "dockChoice"
   | "syncMode"
   | "autoOpen"
   | "proportional"
   | "baselinePercent"
+  | "showBaseline"
+  | "baselineStyle"
+  | "nightMode"
   | "pageLabels"
-  | "shadeCurrentPage"
+  | "shadeStyle"
+  | "nightTone"
   | "reducedMotion"
   | "wordHighlight";
 
@@ -150,7 +170,7 @@ export class PdfSyncSettingTab extends PluginSettingTab {
   getSettingDefinitions(): SettingDefinitionItem<ControlKey>[] {
     return [
       {
-        name: "AIhistory PDF Sync",
+        name: "PDF Sync Markdown",
         searchable: false,
         render: (setting) => {
           setting.settingEl.empty();
@@ -159,7 +179,7 @@ export class PdfSyncSettingTab extends PluginSettingTab {
           const handle = mountReact(mount);
           this.rerenderHeader = () => handle.render(
             <SettingsHeader
-              title="AIhistory PDF Sync"
+              title="PDF Sync Markdown"
               preview={previewOf(this.plugin.settings)}
               message={this.message}
               onReopen={() => {
@@ -213,6 +233,16 @@ export class PdfSyncSettingTab extends PluginSettingTab {
             name: "跟随基准线",
             desc: "正文视口从顶往下的位置（%），两边按这条线对齐",
             control: { type: "slider", key: "baselinePercent", min: 20, max: 50, step: 1, defaultValue: 35, displayFormat: (value) => `${value}%` }
+          },
+          {
+            name: "显示阅读线",
+            desc: "在正文与 PDF 两边同一高度标出阅读线，线上的内容就是两边对齐的地方。默认开",
+            control: { type: "toggle", key: "showBaseline", defaultValue: DEFAULT_SETTINGS.showBaseline }
+          },
+          {
+            name: "阅读线样式",
+            desc: "淡色带：一条很淡的横带（默认）；细线：一根细线加「阅读线」小标签；端点：只在两边各标一对小三角",
+            control: { type: "dropdown", key: "baselineStyle", options: { band: "淡色带", line: "细线", markers: "端点" }, defaultValue: DEFAULT_SETTINGS.baselineStyle }
           }
         ]
       },
@@ -222,43 +252,28 @@ export class PdfSyncSettingTab extends PluginSettingTab {
         items: [
           {
             name: "实时预览里显示页码标签",
-            desc: "点标签跳到 PDF 该页",
+            desc: "把正文里看不见的页码标记显示成小标签，点标签跳到 PDF 该页；源码模式、阅读视图不变。默认开",
             control: { type: "toggle", key: "pageLabels", defaultValue: DEFAULT_SETTINGS.pageLabels }
           },
           {
-            name: "当前页加浅底色",
-            control: { type: "toggle", key: "shadeCurrentPage", defaultValue: DEFAULT_SETTINGS.shadeCurrentPage }
+            name: "夜间模式",
+            desc: "开着时 PDF 页面反色成深底浅字（图片颜色也会反过来）。默认跟随 Obsidian 的亮暗主题自动切换",
+            control: { type: "dropdown", key: "nightMode", options: { auto: "跟随主题", on: "开", off: "关" }, defaultValue: DEFAULT_SETTINGS.nightMode }
+          },
+          {
+            name: "PDF 夜间色调",
+            desc: "中性：纯反色（默认）；暖调：反色后略偏暖黄，不那么刺眼",
+            control: { type: "dropdown", key: "nightTone", options: { neutral: "中性", warm: "暖调" }, defaultValue: DEFAULT_SETTINGS.nightTone }
+          },
+          {
+            name: "当前页标示",
+            desc: "正在读的那一页在正文里怎么标出来（实时预览与源码模式）：淡底色（默认）、左侧竖条，或不标示",
+            control: { type: "dropdown", key: "shadeStyle", options: { tint: "淡底色", bar: "左侧竖条", off: "不标示" }, defaultValue: DEFAULT_SETTINGS.shadeStyle }
           },
           {
             name: "减少动效",
             desc: "系统开了「减少动态效果」时自动打开",
             control: { type: "toggle", key: "reducedMotion", defaultValue: DEFAULT_SETTINGS.reducedMotion }
-          }
-        ]
-      },
-      {
-        type: "group",
-        heading: "繁简通搜",
-        items: [
-          {
-            name: "PDF 里的 Ctrl+F 用繁简通搜",
-            desc: "在 PDF 窗格里按 Ctrl+F 打开繁简通搜，繁体、简体、异体都算同一个字，跨行也找得到；关掉则用 Obsidian 自带的查找（只认字面）。笔记里的 Ctrl+F 不受影响",
-            control: { type: "toggle", key: "findTakeover", defaultValue: DEFAULT_SETTINGS.findTakeover }
-          },
-          {
-            name: "繁简对应",
-            desc: "如 鄴／邺、於／于、後／后（Unihan 繁简对照）",
-            control: { type: "toggle", key: "unihanTradSimp", defaultValue: DEFAULT_SETTINGS.unihanTradSimp }
-          },
-          {
-            name: "同字异写",
-            desc: "同一个字的不同写法（Unihan 同字异写）",
-            control: { type: "toggle", key: "unihanZ", defaultValue: DEFAULT_SETTINGS.unihanZ }
-          },
-          {
-            name: "语义异体",
-            desc: "意思相通的异体，范围宽、误中多，默认关（Unihan 语义异体）",
-            control: { type: "toggle", key: "unihanSemantic", defaultValue: DEFAULT_SETTINGS.unihanSemantic }
           }
         ]
       },

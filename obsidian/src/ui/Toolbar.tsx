@@ -1,7 +1,7 @@
 /**
  * 常驻工具条（React + Base UI + Motion），外观照用户认可的参考页
  * （定稿的设计稿，不在仓库里）。不碰 Obsidian：翻页、读当前页、切换联动、
- * 停靠判断都由宿主经 props 注入，网页版可以原样复用。颜色只引用 `--aps-*` 设计变量（见 styles.css 开头）。
+ * 停靠判断都由宿主经 props 注入。颜色只引用 `--aps-*` 设计变量（见 styles.css 开头）。
  *
  *   ⋮⋮  [‹ 37 /919 p.112 ›]  章名  [双向|单向|暂停]  [⇄ PDF 左]  ⋯  –
  *   底边 2px 全书进度线；收起后只剩「37 · p.112」，宽度弹簧渐变。
@@ -64,8 +64,6 @@ export interface ToolbarActions {
   dragMove: (pointerX: number, pointerY: number, barTop: number) => boolean;
   /** 松手：宿主决定吸附还是悬浮在 (x, y)，收起停靠区并保存 */
   dragEnd: (pointerX: number, pointerY: number, x: number, y: number) => void;
-  /** 打开繁简通搜（宿主不给就不显示按钮） */
-  find?: () => void;
   /** 卡片尺寸变了（宿主据此垫空白） */
   resize?: (width: number, height: number) => void;
 }
@@ -79,7 +77,7 @@ export interface ToolbarProps {
   /** Base UI 弹出层挂在哪（Obsidian 弹出窗口里要用那个窗口的 body） */
   portalContainer: HTMLElement | null;
   actions: ToolbarActions;
-  /** 溢出菜单里那个开关的文字；缺省「打开笔记时自动开 PDF」，网页传「显示 PDF 栏」 */
+  /** 溢出菜单里那个开关的文字；缺省「打开笔记时自动开 PDF」 */
   autoOpenLabel?: string;
 }
 
@@ -244,18 +242,6 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
               ))}
             </ToggleGroup>
           </LayoutGroup>
-          {actions.find ? (
-            <button
-              type="button"
-              className="aps-grp aps-find-open aps-ib"
-              aria-label="繁简通搜：在 PDF 里搜，繁体、简体、异体都算同一个字"
-              title="繁简通搜（在 PDF 里搜）"
-              onClick={() => actions.find?.()}
-            >
-              <span className="aps-ico">⌕</span>
-              <span>搜</span>
-            </button>
-          ) : null}
           <button
             type="button"
             className="aps-grp aps-swap aps-ib"

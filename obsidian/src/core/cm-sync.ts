@@ -1,6 +1,6 @@
 /**
  * 正文一侧的跟随（CodeMirror 6）：量基准线落在哪页、页内多少；把某页某处滚到基准线。
- * 入参是 CodeMirror 6 的 EditorView（这里只按用到的几样写成结构类型，core 不依赖 CodeMirror 包，免得插件与网页各装一份时类型对不上）；网页工作台直接用。插件（markdown-pane.ts）与网页工作台共用。
+ * 入参是 CodeMirror 6 的 EditorView（这里只按用到的几样写成结构类型，core 不依赖 CodeMirror 包）；插件的 markdown-pane.ts 调用它。
  * 旧格式文件（只有印刷页锚点 <!--p.M-->）按 setLegacyOffset 给的 printedPageOffset 换算物理页；缺页停在前一页段末尾。
  */
 import { pageAtOffset, pageSegments, parseAnchors, segmentForPageOrGap, type Anchor, type PageSegment } from "./anchors";

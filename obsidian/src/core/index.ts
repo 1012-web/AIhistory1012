@@ -1,5 +1,5 @@
 /**
- * 核心逻辑：Obsidian 插件与网页版共用。不得 import `obsidian` 与 React。
+ * 核心逻辑：不得 import `obsidian` 与 React，便于单测。
  * 除 collation/pdf-dom、highlight（要浏览器 DOM）与 cm-sync（入参是 CodeMirror 的 EditorView）外都是纯函数，可在 Node 里跑。
  */
 export {
@@ -84,15 +84,3 @@ export {
   type HighlightRequest,
   type HighlighterOptions
 } from "./highlight";
-export {
-  DEFAULT_VARIANT_OPTIONS,
-  PdfFinder,
-  buildVariantTable,
-  pageUnits,
-  queryUnits,
-  searchPages,
-  type PdfHit,
-  type PdfTextSource,
-  type VariantOptions
-} from "./pdf-search";
-export { VariantTable } from "./variants/variants";
