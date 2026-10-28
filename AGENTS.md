@@ -19,7 +19,9 @@ tests/fixtures/         公版《新史學》样例书与排印本 PDF，端到�
 
 锚点、frontmatter `pdf`、书文件夹、`book.json`、疑字清单链接、修订请求格式以 skill 仓库的 `skills/book2md1012/references/anchors.md` 为唯一源；本仓库 `docs/anchors.md`、`docs/division-of-labor.md` 是逐字副本，不在这里单独改。约定要变时：先在 skill 仓库改并补测试，再把两份副本原样覆盖过来，然后改插件代码、补测试。
 
-插件不识字、不改内容；内容修订由对话里的 AI 用 skill 完成，插件只生成「本页修订请求」（格式见 `obsidian/src/core/revision.ts`）。
+插件不识字，也不自己改内容；整页修订由对话里的 AI 用 skill 完成，插件只生成「本页修订请求」（格式见 `obsidian/src/core/revision.ts`）。例外只有用户逐条点了才写的两处：补页码锚点（预览后写入）、判字（用户定字后改正文那个字、勾疑字清单、在 AI 校注补一行，见 `obsidian/src/core/suspects.ts`）；对不上原样的一律不写。
+
+判字读疑字清单时，约定里只有条目链接一项；「· 字 · 前文【现字】后文 ／ VL 作【读法】（说明）」这段写法与判定后补的「 · 判定作【X】（日期）」「 · 存疑（日期）」、校注里「## 用户判定的疑字」一节，目前只按 skill 现行输出解析，尚未写进 `anchors.md`。skill 改这几处写法前，先把它们补进约定。
 
 ## 测试
 

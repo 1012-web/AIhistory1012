@@ -789,3 +789,206 @@ button.aps-button.aps-ob-skip {
 .aps-practice-row button.aps-button {
   font-size: 12px;
 }
+
+/* ---- 判字面板（SuspectPanel）；卡片里的读法按钮、自填、动作行也用在正文悬停卡片上 ---- */
+.aps-suspects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 16px;
+  font-family: var(--aps-font);
+  font-size: 13px;
+  color: var(--aps-text-primary);
+  outline: none;
+}
+.aps-suspects:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--aps-border-accent);
+  border-radius: 8px;
+}
+.aps-suspects-empty p {
+  margin: 0 0 8px;
+}
+.aps-suspects-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aps-suspects-head .aps-row {
+  margin: 0;
+}
+.aps-suspects-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.aps-suspects button.aps-link-button {
+  padding: 0;
+  height: auto;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.aps-suspects button.aps-link-button:hover {
+  color: var(--aps-text-accent);
+}
+.aps-suspects-count {
+  color: var(--aps-text-secondary);
+  font-size: 12px;
+}
+.aps-suspect-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--aps-border);
+  border-radius: 10px;
+  background: var(--aps-surface-2);
+}
+.aps-suspect-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--aps-text-secondary);
+}
+.aps-suspect-state.is-open {
+  color: var(--aps-text-accent);
+}
+.aps-suspect-state.is-doubt {
+  color: var(--text-warning, var(--aps-text-secondary));
+}
+.aps-suspect-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--aps-border);
+  background: #fff;
+}
+.aps-suspect-context {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  word-break: break-all;
+}
+.aps-suspect-context mark,
+.aps-suspects-row mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--aps-bg-accent);
+  color: inherit;
+}
+.aps-suspect-note {
+  margin: 0;
+  font-size: 12px;
+}
+.aps-suspect-readings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+button.aps-suspect-reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 8px;
+  background: var(--aps-surface-2);
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+button.aps-suspect-reading:hover {
+  background: var(--aps-surface-1);
+}
+button.aps-suspect-reading.is-chosen {
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+}
+.aps-suspect-source {
+  font-size: 11px;
+  color: var(--aps-text-secondary);
+}
+.aps-suspect-glyph {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.aps-suspects kbd {
+  font-family: var(--font-monospace, monospace);
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 4px;
+  color: var(--aps-text-muted);
+}
+.aps-suspect-custom {
+  display: flex;
+  gap: 6px;
+}
+.aps-suspect-custom input {
+  flex: 1;
+  min-width: 0;
+}
+.aps-suspect-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aps-suspects-keys {
+  margin: 0;
+}
+.aps-suspects-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--aps-border);
+}
+button.aps-suspects-row {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: baseline;
+  height: auto;
+  padding: 5px 4px;
+  border: none;
+  border-bottom: 1px solid var(--aps-border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--aps-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.aps-suspects-row:hover {
+  background: var(--aps-surface-1);
+}
+button.aps-suspects-row.is-selected {
+  background: var(--aps-bg-accent);
+}
+button.aps-suspects-row.is-done {
+  color: var(--aps-text-muted);
+}
+.aps-suspects-row-id {
+  flex: none;
+  font-size: 11px;
+  color: var(--aps-text-muted);
+}
+.aps-suspects-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aps-suspects-row-page {
+  flex: none;
+  font-size: 11px;
+  color: var(--aps-text-muted);
+}

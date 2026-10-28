@@ -1,15 +1,19 @@
-import { MarkdownView, Plugin, TFile } from "obsidian";
+import { MarkdownView, Plugin, TFile, type WorkspaceLeaf } from "obsidian";
 import { SyncController } from "./controller";
 import { editorExtensions, refreshLabels } from "./editor-ext";
 import { parseSuspectLink, PROTOCOL_ACTION } from "./core/link";
 import { editorViewOf } from "./markdown-pane";
 import { OnboardingHost } from "./onboarding-host";
 import { mergeSettings, nightActive, PdfSyncSettingTab, type PdfSyncSettings } from "./settings";
+import { SuspectDesk } from "./suspect-desk";
+import { suspectExtensions } from "./suspect-ext";
+import { SUSPECT_VIEW, SuspectView } from "./suspect-view";
 
 export default class AIhistoryPdfSync extends Plugin {
   declare settings: PdfSyncSettings;
   controller!: SyncController;
   onboarding!: OnboardingHost;
+  suspects!: SuspectDesk;
   private settingTab: PdfSyncSettingTab | null = null;
 
   async onload(): Promise<void> {
@@ -24,7 +28,12 @@ export default class AIhistoryPdfSync extends Plugin {
       statusBar
     });
     this.onboarding = new OnboardingHost(this);
-    this.controller.onBookAttached = () => this.onboarding.onBookAttached();
+    this.suspects = new SuspectDesk({ app: this.app, controller: this.controller, marksEnabled: () => this.settings.suspectMarks });
+    this.suspects.onShowInPanel = () => void this.openSuspects();
+    this.controller.onBookAttached = () => {
+      this.onboarding.onBookAttached();
+      void this.suspects.follow();
+    };
     this.controller.onPractice = (id) => this.onboarding.practiced(id);
     this.settingTab = new PdfSyncSettingTab(this.app, this);
     this.addSettingTab(this.settingTab);
@@ -37,6 +46,14 @@ export default class AIhistoryPdfSync extends Plugin {
       onLabelClick: (page) => void this.controller.jumpToPage(page)
     }));
 
+    // 判字：右侧栏的面板（A），正文里的标记与悬停卡片（B）
+    this.registerView(SUSPECT_VIEW, (leaf) => new SuspectView(leaf, this.suspects, () => this.settings.reducedMotion));
+    this.registerEditorExtension(suspectExtensions({
+      enabled: () => this.settings.suspectMarks,
+      card: (key, close) => this.suspects.card(key, close)
+    }));
+    this.registerEvent(this.app.workspace.on("file-open", () => this.suspects.refreshMarks()));
+
     // 阅读视图：给每个段落记下源码行号，跟随时据此换算位置
     this.registerMarkdownPostProcessor((element, context) => {
       const info = context.getSectionInfo(element);
@@ -48,7 +65,9 @@ export default class AIhistoryPdfSync extends Plugin {
     this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => void this.controller.onActiveLeaf(leaf)));
     this.registerEvent(this.app.workspace.on("layout-change", () => this.controller.onLayoutChange()));
     this.registerEvent(this.app.vault.on("modify", (file) => {
-      if (file instanceof TFile) void this.controller.onFileChanged(file);
+      if (!(file instanceof TFile)) return;
+      void this.controller.onFileChanged(file);
+      this.suspects.onFileChanged(file);
     }));
     this.registerEvent(this.app.metadataCache.on("changed", (file) => void this.controller.onFileChanged(file)));
     this.registerEvent(this.app.vault.on("rename", (file) => {
@@ -95,6 +114,11 @@ export default class AIhistoryPdfSync extends Plugin {
       checkCallback: (checking) => this.withBook(checking, () => void this.controller.openPagemarkPreview())
     });
     this.addCommand({
+      id: "open-suspects",
+      name: "打开判字面板（逐条判定疑字清单）",
+      callback: () => void this.openSuspects()
+    });
+    this.addCommand({
       id: "open-onboarding",
       name: "重新打开引导",
       callback: () => this.onboarding.show()
@@ -116,6 +140,20 @@ export default class AIhistoryPdfSync extends Plugin {
     document.body.removeClass("aps-night", "aps-night-warm", "aps-shade-tint", "aps-shade-bar");
     this.onboarding?.dispose();
     this.controller?.dispose();
+    this.suspects?.dispose();
+  }
+
+  /** 判字面板：已开就翻到前面，没开就开在右侧栏 */
+  async openSuspects(): Promise<void> {
+    const workspace = this.app.workspace;
+    let leaf: WorkspaceLeaf | null = workspace.getLeavesOfType(SUSPECT_VIEW)[0] ?? null;
+    if (!leaf) {
+      leaf = workspace.getRightLeaf(false);
+      if (!leaf) return;
+      await leaf.setViewState({ type: SUSPECT_VIEW, active: true });
+    }
+    await workspace.revealLeaf(leaf);
+    await this.suspects.follow();
   }
 
   private withMarkdown(checking: boolean, run: () => void): boolean {
@@ -157,6 +195,7 @@ export default class AIhistoryPdfSync extends Plugin {
   settingsChanged(): void {
     this.applyLook();
     this.controller.settingsChanged();
+    this.suspects.refreshMarks();
     this.settingTab?.refresh();
     // 标签开关：让各编辑器重画
     this.app.workspace.iterateAllLeaves((leaf) => {

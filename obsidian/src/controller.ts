@@ -17,7 +17,7 @@ import { editorViewOf, markdownPointAt, modeOf, parsedText, scrollMarkdownTo, sc
 import { PdfSuggestModal } from "./modals";
 import { openBindDialog, openPagemarkDialog } from "./react-mount";
 import { applyPagemarks, planPagemarks } from "./core/pagemarks";
-import { Pairer, type Book } from "./pairing";
+import { findNote, Pairer, type Book } from "./pairing";
 import { delay, leafPdfFile, PdfPane } from "./pdf-view";
 import { buildRevisionRequest } from "./core/revision";
 import { applySyncMode, syncModeOf, type PdfSyncSettings, type PracticeId, type ToolbarState } from "./settings";
@@ -686,16 +686,18 @@ export class SyncController {
 
   // ---------- 疑字链接 ----------
 
-  async openSuspectLink(link: SuspectLink): Promise<boolean> {
-    const vault = this.app.vault;
-    const found = vault.getAbstractFileByPath(link.file) ?? vault.getAbstractFileByPath(`${link.file}.md`);
-    if (!(found instanceof TFile)) {
+  /** focus: false 时不抢焦点（判字面板里换条，按键要留在面板） */
+  async openSuspectLink(link: SuspectLink, options: { focus?: boolean } = {}): Promise<boolean> {
+    const found = findNote(this.app, link.file);
+    if (!found) {
       new Notice(`找不到笔记：${link.file}`);
       return false;
     }
     let leaf = this.markdownLeaf;
     if (!leaf || !this.leafAlive(leaf)) leaf = this.app.workspace.getLeaf(false);
-    await leaf.openFile(found, { active: true });
+    // 不抢焦点且已经开着这篇时不重开（重开会把焦点抢过去）
+    const alreadyOpen = leaf.view instanceof MarkdownView && leaf.view.file?.path === found.path;
+    if (options.focus !== false || !alreadyOpen) await leaf.openFile(found, { active: options.focus !== false });
     const book = await this.pairer.book(found);
     if (!book) {
       new Notice("这篇笔记没有配对的 PDF");
