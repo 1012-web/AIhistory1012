@@ -25,6 +25,7 @@ export default class AIhistoryPdfSync extends Plugin {
       app: this.app,
       settings: this.settings,
       saveSettings: () => this.saveSettings(),
+      openSettings: () => this.openSettings(),
       statusBar
     });
     this.onboarding = new OnboardingHost(this);
@@ -178,6 +179,14 @@ export default class AIhistoryPdfSync extends Plugin {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (view) await this.controller.onActiveLeaf(view.leaf);
     await this.controller.ensurePdf();
+  }
+
+  /** 打开 Obsidian 设置并切到本插件那一页（setting 不在公开类型里） */
+  openSettings(): void {
+    const setting = (this.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
+    if (!setting) return;
+    setting.open();
+    setting.openTabById(this.manifest.id);
   }
 
   async saveSettings(): Promise<void> {
