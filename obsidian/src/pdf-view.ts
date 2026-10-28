@@ -4,7 +4,9 @@
  * 拿不到内部对象时，跳页退回公开的 setEphemeralState({ subpath: "#page=N" })。
  */
 import type { TFile, WorkspaceLeaf } from "obsidian";
-import { baselineY, pdfPointAt, scrollDeltaToBaseline, type PageBox, type PagePoint } from "./core/sync-math";
+import type { PdfPageLines } from "./core/line-align";
+import { groupTextLines, type TextItemLike, type ViewportLike } from "./core/pdf-lines";
+import { baselineY, clamp01, pdfPointAt, scrollDeltaToBaseline, type PageBox, type PagePoint } from "./core/sync-math";
 
 export interface PDFEventBus {
   on: (event: string, callback: (payload: unknown) => void) => void;
@@ -12,12 +14,18 @@ export interface PDFEventBus {
 }
 
 export interface PDFTextContent {
-  items: Array<{ str?: string; hasEOL?: boolean }>;
+  items: TextItemLike[];
+  styles?: Record<string, { vertical?: boolean }>;
+}
+
+export interface PDFPageProxy {
+  getTextContent: () => Promise<PDFTextContent>;
+  getViewport: (options: { scale: number }) => ViewportLike;
 }
 
 export interface PDFDocumentProxy {
   numPages: number;
-  getPage: (page: number) => Promise<{ getTextContent: () => Promise<PDFTextContent> }>;
+  getPage: (page: number) => Promise<PDFPageProxy>;
 }
 
 export interface PDFPageView {
@@ -134,6 +142,49 @@ export class PdfPane {
     if (Math.abs(delta) < 1) return false;
     container.scrollTop += delta;
     return true;
+  }
+
+  /**
+   * 逐行跟随用的量法：（页，页内比例）→ 滚动容器里的文档高度（像素，不随滚动变）。
+   * 返回的函数记着这一刻各页的位置，一次跟随用完即弃；该页没有页元素时给 null。
+   */
+  heights(): (page: number, fraction: number) => number | null {
+    const container = this.container;
+    if (!container) return () => null;
+    const origin = container.getBoundingClientRect().top - container.scrollTop;
+    const boxes = new Map<number, DOMRect | null>();
+    return (page, fraction) => {
+      let box = boxes.get(page);
+      if (box === undefined) {
+        box = this.pageElement(page)?.getBoundingClientRect() ?? null;
+        boxes.set(page, box);
+      }
+      return box && box.height > 0 ? box.top + box.height * fraction - origin : null;
+    };
+  }
+
+  /** 基准线在滚动容器里的文档高度 */
+  baselineHeight(ratio: number): number | null {
+    const container = this.container;
+    return container ? container.scrollTop + container.getBoundingClientRect().height * clamp01(ratio) : null;
+  }
+
+  /** 把文档高度 height 滚到基准线；返回是否真的滚了 */
+  scrollToHeight(height: number, ratio: number): boolean {
+    const container = this.container;
+    const now = this.baselineHeight(ratio);
+    if (!container || now === null || Math.abs(height - now) < 1) return false;
+    container.scrollTop += height - now;
+    return true;
+  }
+
+  /** 第 page 页文字层的各行（PDF.js 抽取，不依赖是否渲染过）；读不到返回 null */
+  async pageLines(page: number): Promise<PdfPageLines | null> {
+    const doc = this.viewer?.pdfDocument;
+    if (!doc || page < 1 || page > doc.numPages) return null;
+    const proxy = await doc.getPage(page);
+    const content = await proxy.getTextContent();
+    return { page, ...groupTextLines(content.items, content.styles, proxy.getViewport({ scale: 1 })) };
   }
 
   /** 公开接口跳页：内部对象不可用时的退路 */

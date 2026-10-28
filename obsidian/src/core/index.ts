@@ -71,7 +71,21 @@ export {
   type Placement
 } from "./pagemarks";
 export { buildRevisionRequest, type RevisionRequest } from "./revision";
-export { markdownPointAt, parsedDoc, parsedText, scrollMarkdownTo, setLegacyOffset, scrollOffsetToBaseline, type CmDoc, type EditorView as CmEditorView, type MarkdownPoint, type Parsed } from "./cm-sync";
+export { cmGeometry, markdownPointAt, parsedDoc, parsedText, scrollMarkdownTo, setLegacyOffset, scrollOffsetToBaseline, type CmDoc, type EditorView as CmEditorView, type MarkdownGeometry, type MarkdownPoint, type Parsed } from "./cm-sync";
+export {
+  alignSegment,
+  fallbackPoints,
+  longestIncreasing,
+  textBox,
+  type AlignPoint,
+  type AlignQuality,
+  type PdfLine,
+  type PdfPageLines,
+  type SegmentAlignment
+} from "./line-align";
+export { LineMap, type TextLayerProblem } from "./line-map";
+export { markdownTargetForPdf, pdfTargetForMarkdown, type MarkdownHeight, type PdfHeight } from "./line-sync";
+export { groupTextLines, type GroupedLines, type TextItemLike, type ViewportLike } from "./pdf-lines";
 export { frontmatterPdf, linkpathOf, pdfLinkValue, setFrontmatterPdf } from "./frontmatter";
 export { BOOK_JSON, DATA_DIR, TEXT_LAYER_SUFFIX, uniquePdf, type BookJson, type BookJsonFile, type PairSource } from "./pairing";
 export {

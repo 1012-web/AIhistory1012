@@ -34,6 +34,7 @@ export default class AIhistoryPdfSync extends Plugin {
 
     this.registerEditorExtension(editorExtensions({
       labels: () => this.settings.pageLabels,
+      shade: () => this.settings.shadeStyle,
       onLabelClick: (page) => void this.controller.jumpToPage(page)
     }));
 
@@ -113,7 +114,7 @@ export default class AIhistoryPdfSync extends Plugin {
   }
 
   onunload(): void {
-    document.body.removeClass("aps-night", "aps-night-warm", "aps-shade-tint", "aps-shade-bar");
+    document.body.removeClass("aps-night", "aps-night-warm");
     this.onboarding?.dispose();
     this.controller?.dispose();
   }
@@ -143,22 +144,20 @@ export default class AIhistoryPdfSync extends Plugin {
 
   /**
    * 外观挂到 body 的类名上，样式见 styles/plugin.css：
-   * aps-night（夜间模式生效，PDF 页面反色）、aps-night-warm（暖调）、aps-shade-tint / aps-shade-bar（当前页标示）
+   * aps-night（夜间模式生效，PDF 页面反色）、aps-night-warm（暖调）。当前页标示由编辑器图层按设置画，不挂类名（见 editor-ext.ts）
    */
   applyLook(): void {
     const body = document.body;
     const night = nightActive(this.settings.nightMode, body.hasClass("theme-dark"));
     body.toggleClass("aps-night", night);
     body.toggleClass("aps-night-warm", night && this.settings.nightTone === "warm");
-    body.toggleClass("aps-shade-tint", this.settings.shadeStyle === "tint");
-    body.toggleClass("aps-shade-bar", this.settings.shadeStyle === "bar");
   }
 
   settingsChanged(): void {
     this.applyLook();
     this.controller.settingsChanged();
     this.settingTab?.refresh();
-    // 标签开关：让各编辑器重画
+    // 标签开关、当前页标示样式：让各编辑器重画
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (leaf.view instanceof MarkdownView) editorViewOf(leaf.view)?.dispatch({ effects: refreshLabels.of(null) });
     });

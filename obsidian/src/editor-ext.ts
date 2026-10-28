@@ -1,53 +1,53 @@
 /**
- * CodeMirror 6 扩展：当前页浅底色（按页校改 A 式）；实时预览里把锚点显示成小页码标签。
+ * CodeMirror 6 扩展：当前页标示（按页校改 A 式）；实时预览里把锚点显示成小页码标签。
+ *
+ * 当前页标示用 CodeMirror 自带的图层（layer）和 RectangleMarker 画，画法与选区相同：从本页锚点那个字起、
+ * 到下一页锚点止，锚点夹在段中也从段中起止，中间整行涂满。以前按编辑器的行涂，一个自然段就是一行，会把前后页的半段一起涂上。
  */
-import { RangeSetBuilder, StateEffect, StateField, type Extension } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, RangeSetBuilder, StateEffect, StateField, type Extension, type Text } from "@codemirror/state";
+import { Decoration, EditorView, layer, RectangleMarker, ViewPlugin, WidgetType, type DecorationSet, type LayerMarker, type ViewUpdate } from "@codemirror/view";
 import { editorLivePreviewField } from "obsidian";
 import { segmentForPage } from "./core/anchors";
 import { parsedDoc } from "./markdown-pane";
+import type { ShadeStyle } from "./settings";
 
 export const setCurrentPage = StateEffect.define<number | null>();
-/** 设置改了（标签开关）：让标签重画 */
+/** 设置改了（标签开关、标示样式）：让标签与标示重画 */
 export const refreshLabels = StateEffect.define<null>();
 
-const shadeLine = Decoration.line({ class: "aps-current-page" });
-
-function shadeDecorations(doc: EditorView["state"]["doc"], page: number | null): DecorationSet {
-  if (page === null) return Decoration.none;
-  const segment = segmentForPage(parsedDoc(doc).segments, page);
-  if (!segment || segment.to <= segment.from) return Decoration.none;
-  const builder = new RangeSetBuilder<Decoration>();
-  const first = doc.lineAt(segment.from).number;
-  const last = doc.lineAt(Math.max(segment.from, segment.to - 1)).number;
-  for (let number = first; number <= last; number += 1) {
-    const line = doc.line(number);
-    builder.add(line.from, line.from, shadeLine);
-  }
-  return builder.finish();
-}
-
-interface ShadeState {
-  page: number | null;
-  decorations: DecorationSet;
-}
-
-const shadeField = StateField.define<ShadeState>({
-  create: () => ({ page: null, decorations: Decoration.none }),
+/** 当前页：控制器经 setCurrentPage 设 */
+const currentPage = StateField.define<number | null>({
+  create: () => null,
   update(value, transaction) {
-    let page = value.page;
-    let changed = transaction.docChanged;
-    for (const effect of transaction.effects) {
-      if (effect.is(setCurrentPage) && effect.value !== page) {
-        page = effect.value;
-        changed = true;
-      }
-    }
-    if (!changed) return value;
-    return { page, decorations: shadeDecorations(transaction.state.doc, page) };
-  },
-  provide: (field) => EditorView.decorations.from(field, (value) => value.decorations)
+    for (const effect of transaction.effects) if (effect.is(setCurrentPage)) value = effect.value;
+    return value;
+  }
 });
+
+/** 本页在文档里的区间：从本页锚点起，到下一页锚点止，去掉页末的空行 */
+export function pageRange(doc: Text, page: number): { from: number; to: number } | null {
+  const segment = segmentForPage(parsedDoc(doc).segments, page);
+  if (!segment) return null;
+  const to = segment.from + doc.sliceString(segment.from, segment.to).trimEnd().length;
+  return to > segment.from ? { from: segment.from, to } : null;
+}
+
+/** 左侧竖条：离正文左缘多远、多宽（像素） */
+const BAR_GAP = 8;
+const BAR_WIDTH = 2;
+
+function shadeMarkers(view: EditorView, style: ShadeStyle): readonly LayerMarker[] {
+  const page = view.state.field(currentPage, false);
+  if (page === null || page === undefined || style === "off") return [];
+  const range = pageRange(view.state.doc, page);
+  if (!range) return [];
+  const rects = RectangleMarker.forRange(view, "aps-current-page", EditorSelection.range(range.from, range.to));
+  if (style !== "bar" || !rects.length) return rects;
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const bottom = Math.max(...rects.map((rect) => rect.top + rect.height));
+  const left = Math.min(...rects.map((rect) => rect.left));
+  return [new RectangleMarker("aps-current-page-bar", left - BAR_GAP, top, BAR_WIDTH, bottom - top)];
+}
 
 class PageLabelWidget extends WidgetType {
   constructor(private readonly page: number, private readonly printed: string | null, private readonly onClick: (page: number) => void) {
@@ -93,8 +93,13 @@ function labelDecorations(view: EditorView, onClick: (page: number) => void): De
   return builder.finish();
 }
 
+function refreshed(update: ViewUpdate): boolean {
+  return update.transactions.some((tr) => tr.effects.some((effect) => effect.is(refreshLabels)));
+}
+
 export interface EditorExtensionOptions {
   labels: () => boolean;
+  shade: () => ShadeStyle;
   onLabelClick: (page: number) => void;
 }
 
@@ -108,10 +113,16 @@ export function editorExtensions(options: EditorExtensionOptions): Extension[] {
 
     update(update: ViewUpdate): void {
       const livePreviewChanged = update.startState.field(editorLivePreviewField, false) !== update.state.field(editorLivePreviewField, false);
-      if (update.docChanged || update.viewportChanged || update.selectionSet || livePreviewChanged || update.transactions.some((tr) => tr.effects.some((effect) => effect.is(refreshLabels)))) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || livePreviewChanged || refreshed(update)) {
         this.decorations = options.labels() ? labelDecorations(update.view, options.onLabelClick) : Decoration.none;
       }
     }
   }, { decorations: (plugin) => plugin.decorations });
-  return [shadeField, labels];
+  const shade = layer({
+    above: false,
+    class: "aps-page-shade",
+    markers: (view) => shadeMarkers(view, options.shade()),
+    update: (update) => update.docChanged || update.viewportChanged || update.geometryChanged || update.selectionSet || refreshed(update) || update.startState.field(currentPage, false) !== update.state.field(currentPage, false)
+  });
+  return [currentPage, shade, labels];
 }

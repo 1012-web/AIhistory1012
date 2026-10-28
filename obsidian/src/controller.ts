@@ -1,7 +1,8 @@
 /**
  * 联动控制器：当前这本书、正文窗格、PDF 窗格三者的会话。
  *
- * 跟随：正文 → PDF 按页、页内按比例，基准线在视口距顶 35%（可调，并可在两窗格画出来）；双向联动时 PDF → 正文（可跨文件）。
+ * 跟随：正文 → PDF 按页、页内逐行对齐（PDF 文字层的各行与正文逐字比对，见 core/line-align.ts；没有可用文字层的页按比例），
+ * 基准线在视口距顶 35%（可调，并可在两窗格画出来）；双向联动时 PDF → 正文（可跨文件）。
  * 防回环：领跑方取最近有输入（滚轮、按键、指针）的窗格；程序滚动后对侧静默约 200 毫秒。
  * 手动翻 PDF 时 PDF 领跑，正文不再带动它（跟随暂停）；回到正文一有输入就恢复。
  */
@@ -10,10 +11,12 @@ import { FileSystemAdapter, MarkdownView, Notice, TFile, type App, type Workspac
 import { BaselineLine } from "./baseline-line";
 import { pageAtOffset, segmentForPage, segmentForPageOrGap } from "./core/anchors";
 import { fileForPage, printedLabel, suggestedPageRange } from "./core/book-index";
+import { LineMap, type TextLayerProblem } from "./core/line-map";
+import { markdownTargetForPdf, pdfTargetForMarkdown } from "./core/line-sync";
 import { setCurrentPage } from "./editor-ext";
 import { PdfHighlighter, locateInSegment, selectionContext } from "./highlight";
 import { locateSuspect, type SuspectLink } from "./core/link";
-import { editorViewOf, markdownPointAt, modeOf, parsedText, scrollMarkdownTo, scrollerOf, setLegacyOffset } from "./markdown-pane";
+import { editorViewOf, markdownGeometry, markdownPointAt, modeOf, parsedOf, parsedText, scrollMarkdownTo, scrollerOf, setLegacyOffset } from "./markdown-pane";
 import { PdfSuggestModal } from "./modals";
 import { openBindDialog, openPagemarkDialog } from "./react-mount";
 import { applyPagemarks, planPagemarks } from "./core/pagemarks";
@@ -63,9 +66,21 @@ export class SyncController {
   private selectionTimer: number | null = null;
   private suppressSelectionUntil = 0;
   private opening: Promise<PdfPane | null> | null = null;
+  /** 逐行对齐：PDF 各页文字层与正文各页段的对齐点（缓存） */
+  readonly lines = new LineMap((page) => this.pdf?.pageLines(page) ?? Promise.resolve(null));
+  private linesFrame: number | null = null;
 
   constructor(private readonly host: ControllerHost) {
     this.pairer = new Pairer(host.app);
+    // 新读到一页文字层：先前用的是按页兜底，下一帧按逐行再对一次
+    this.lines.onLoaded = () => {
+      if (this.linesFrame !== null) return;
+      this.linesFrame = window.requestAnimationFrame(() => {
+        this.linesFrame = null;
+        this.realign();
+      });
+    };
+    this.lines.onProblem = (problem) => this.textLayerNotice(problem);
     this.toolbar = new ToolbarHost({
       state: () => host.settings.toolbar,
       saveState: (state: ToolbarState) => {
@@ -235,6 +250,7 @@ export class SyncController {
     this.disposePdf();
     const pane = new PdfPane(leaf);
     this.pdf = pane;
+    this.lines.reset(pane.file?.path ?? null);
     const root = leaf.view.containerEl;
     const onScroll = () => {
       if (this.pdfFrame !== null) return;
@@ -263,6 +279,7 @@ export class SyncController {
       // viewer 容器要等 PDF 加载好才量得到
       this.refreshBaselines();
       this.refreshStatus();
+      this.prefetchLines(this.currentPage);
     });
     this.pdfLine = new BaselineLine(root, () => pane.container, () => this.ratioFor("pdf"), () => this.settings.baselineStyle, () => this.positionBaselines());
     this.refreshBaselines();
@@ -321,6 +338,8 @@ export class SyncController {
   /** 书的文件改了：重读索引（锚点可能变了） */
   async onFileChanged(file: TFile): Promise<void> {
     if (!this.book || !this.markdownView?.file) return;
+    // PDF 本身换了（比如覆盖成文字层副本）：文字层重读
+    if (file.path === this.book.pdf.path && file.path === this.pdf?.file?.path) this.lines.clear();
     if (file.path === this.book.pdf.path || this.book.members.some((member) => member.path === file.path) || file.path.endsWith("book.json")) {
       const book = await this.pairer.book(this.markdownView.file);
       if (book) {
@@ -398,14 +417,23 @@ export class SyncController {
     this.syncFromMarkdown(false);
   }
 
-  /** 正文 → PDF */
+  /** 正文 → PDF：逐行对齐得出 PDF 该滚到的高度；对不上（或关了页内对齐）就按页 */
   syncFromMarkdown(force: boolean): void {
     const view = this.markdownView;
     const pane = this.pdf;
     if (!view || !pane?.ready || (this.paused && !force)) return;
-    const point = markdownPointAt(view, this.ratioFor("markdown"));
+    const ratio = this.ratioFor("markdown");
+    const point = markdownPointAt(view, ratio);
     if (!point) return;
     this.quiet.pdf.hold(this.settings.quietMs);
+    if (this.settings.proportional) {
+      const geometry = markdownGeometry(view);
+      const target = geometry ? pdfTargetForMarkdown(this.lines.pointsNearOffset(parsedOf(view), point.offset), geometry.baseline(ratio), (offset) => geometry.heightAt(offset), pane.heights()) : null;
+      if (target !== null) {
+        pane.scrollToHeight(target, this.ratioFor("pdf"));
+        return;
+      }
+    }
     pane.scrollTo({ page: point.page, fraction: this.settings.proportional ? point.fraction : 0 }, this.ratioFor("pdf"));
   }
 
@@ -414,6 +442,7 @@ export class SyncController {
     if (!pane) return;
     const point = pane.pointAtBaseline(this.ratioFor("pdf"));
     this.refreshStatus(point?.page);
+    if (point) this.prefetchLines(point.page);
     if (!point || this.quiet.pdf.quiet || this.paused || this.leader.leader !== "pdf" || !this.settings.bidirectional) return;
     void this.followPdf(this.settings.proportional ? point : { page: point.page, fraction: 0 });
   }
@@ -435,15 +464,63 @@ export class SyncController {
     const current = this.markdownView;
     if (!current) return;
     this.quiet.markdown.hold(this.settings.quietMs);
-    if (scrollMarkdownTo(current, point, this.ratioFor("markdown"))) {
+    if (this.followPdfByLines(current, point.page) || scrollMarkdownTo(current, point, this.ratioFor("markdown"))) {
       // CodeMirror 对没量过的行用估计高度，滚过去后再校一次
       window.requestAnimationFrame(() => {
         this.quiet.markdown.hold(this.settings.quietMs);
         const latest = this.markdownView;
-        if (latest) scrollMarkdownTo(latest, point, this.ratioFor("markdown"));
+        if (latest && !this.followPdfByLines(latest, point.page)) scrollMarkdownTo(latest, point, this.ratioFor("markdown"));
         this.updateCurrentFromMarkdown();
       });
     }
+  }
+
+  /** PDF → 正文的逐行对齐：PDF 基准线处的高度换成正文的阅读高度并滚过去；对不上或关了页内对齐返回 false */
+  private followPdfByLines(view: MarkdownView, page: number): boolean {
+    const pane = this.pdf;
+    if (!this.settings.proportional || !pane) return false;
+    const geometry = markdownGeometry(view);
+    const height = pane.baselineHeight(this.ratioFor("pdf"));
+    if (!geometry || height === null) return false;
+    const target = markdownTargetForPdf(this.lines.pointsNearPage(parsedOf(view), page), height, (offset) => geometry.heightAt(offset), pane.heights());
+    if (target === null) return false;
+    geometry.scrollTo(target, this.ratioFor("markdown"));
+    return true;
+  }
+
+  /** 新读到文字层后再对一次：谁领跑就按谁对（用户正在滚的那边不动） */
+  private realign(): void {
+    if (this.paused || !this.settings.proportional || !this.pdf?.ready || !this.markdownView) return;
+    if (this.leader.leader === "markdown") {
+      if (!this.quiet.markdown.quiet) this.syncFromMarkdown(false);
+      return;
+    }
+    if (!this.settings.bidirectional || this.quiet.pdf.quiet) return;
+    const point = this.pdf.pointAtBaseline(this.ratioFor("pdf"));
+    if (!point) return;
+    this.quiet.markdown.hold(this.settings.quietMs);
+    this.followPdfByLines(this.markdownView, point.page);
+  }
+
+  /** 预读当前页前后几页的文字层 */
+  private prefetchLines(page: number): void {
+    if (!this.pdf?.ready || !this.settings.proportional) return;
+    this.lines.prefetch([page, page + 1, page - 1, page + 2, page - 2]);
+  }
+
+  /** 这份 PDF 没有可用的文字层：只能按页跟随。每份 PDF 只提示一次（记进设置） */
+  private textLayerNotice(problem: TextLayerProblem): void {
+    const path = this.pdf?.file?.path;
+    if (!path || this.settings.textLayerNoticed.includes(path)) return;
+    this.settings.textLayerNoticed = [...this.settings.textLayerNoticed, path];
+    void this.host.saveSettings();
+    const name = this.pdf?.file?.name ?? path;
+    if (problem === "vertical") {
+      new Notice(`「${name}」是竖排，页内不能逐行对齐，只能按页跟随。`, 12000);
+      return;
+    }
+    const why = problem === "none" ? "没有文字层" : "的文字层与正文对不上（可能是乱码）";
+    new Notice(`「${name}」${why}，只能按页跟随。用 book2md1012 做一份文字层副本后，就能逐行对齐。`, 12000);
   }
 
   /** 正文基准线处的页 → 当前页、底色、状态 */
@@ -452,6 +529,7 @@ export class SyncController {
     if (!view) return;
     const point = markdownPointAt(view, this.ratioFor("markdown"));
     if (point) {
+      if (point.page !== this.currentPage) this.prefetchLines(point.page);
       this.currentPage = point.page;
       this.currentPrinted = point.printed;
       this.currentChapter = this.chapterAt(view, point.offset);
@@ -499,13 +577,18 @@ export class SyncController {
     }
     const view = this.markdownView;
     if (view) {
-      scrollMarkdownTo(view, point, markdownRatio);
+      // 跳到页首：PDF 页顶贴顶，正文按阅读线上的那一行跟过去（阅读线上两边始终是同一行）；对不上时正文也按页首贴顶
+      const place = (current: MarkdownView) => {
+        if (fraction !== 0 || !this.followPdfByLines(current, target)) scrollMarkdownTo(current, point, markdownRatio);
+      };
+      place(view);
       window.requestAnimationFrame(() => {
         this.quiet.markdown.hold(this.settings.quietMs);
         const latest = this.markdownView;
-        if (latest) scrollMarkdownTo(latest, point, markdownRatio);
+        if (latest) place(latest);
       });
     }
+    this.prefetchLines(target);
     this.setCurrent(target);
     this.setShade(this.settings.shadeStyle !== "off" ? target : null);
     this.refreshStatus(target);
@@ -836,6 +919,24 @@ export class SyncController {
   /** PDF 基准线处的页与页内比例 */
   pdfPoint(): PagePoint | null {
     return this.pdf?.pointAtBaseline(this.ratioFor("pdf")) ?? null;
+  }
+
+  /** 逐行对齐排查用：正文基准线附近的对齐点、各点在两边的高度，以及正文 → PDF 算出的目标高度 */
+  alignmentProbe(): { baseline: number; target: number | null; points: Array<{ offset: number; page: number; fraction: number; markdown: number | null; pdf: number | null }> } | null {
+    const view = this.markdownView;
+    const pane = this.pdf;
+    const ratio = this.ratioFor("markdown");
+    const point = view ? markdownPointAt(view, ratio) : null;
+    const geometry = view ? markdownGeometry(view) : null;
+    if (!view || !pane || !point || !geometry) return null;
+    const points = this.lines.pointsNearOffset(parsedOf(view), point.offset);
+    const heights = pane.heights();
+    const baseline = geometry.baseline(ratio);
+    return {
+      baseline,
+      target: pdfTargetForMarkdown(points, baseline, (offset) => geometry.heightAt(offset), heights),
+      points: points.map((item) => ({ ...item, markdown: geometry.heightAt(item.offset), pdf: heights(item.page, item.fraction) }))
+    };
   }
 
   get scroller(): HTMLElement | null {

@@ -5,7 +5,7 @@
 
 ## 代码分层
 
-- `src/core/`：锚点解析、书内索引、页内比例换算、移植的匹配算法、`obsidian://` 链接解析、补锚点方案、修订请求。不 import `obsidian` 与 React，对外导出见 `src/core/index.ts`。
+- `src/core/`：锚点解析、书内索引、页内逐行对齐（`pdf-lines.ts` 把 PDF.js 文字层归并成行，`line-align.ts` 用 jsdiff 把各行与正文页段逐字比对出对齐点，`line-sync.ts` 按对齐点分段插值，`line-map.ts` 缓存与取点）、移植的匹配算法、`obsidian://` 链接解析、补锚点方案、修订请求。不 import `obsidian` 与 React，对外导出见 `src/core/index.ts`。
 - `src/ui/`：工具条、绑定确认窗、补锚点预览窗（React 19 + Base UI + Motion）。不 import `obsidian`，宿主能力经 props 注入，对外导出见 `src/ui/index.ts`。外观以 `design/toolbar-approved.html` 为准；组件样式在 `src/ui/ui.css`，只引用 `--aps-*` 设计变量（在 `styles/tokens-obsidian.css` 里指向 Obsidian 主题变量）。构建时把它和 `styles/plugin.css` 拼成 `dist/styles.css`。
 - 其余（`controller.ts`、`toolbar-host.tsx`、`pdf-view.ts`、`markdown-pane.ts`、`editor-ext.ts`、`baseline-line.ts`……）是 Obsidian 宿主层；`baseline-line.ts` 在两窗格画阅读线。React 挂在目标窗格所在窗口的 document 里（兼容弹出窗口）。
 

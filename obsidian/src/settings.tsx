@@ -46,7 +46,7 @@ export interface PdfSyncSettings {
   paused: boolean;
   /** 打开配对的笔记时自动在旁边打开 PDF（默认开，记住上次的选择） */
   autoOpen: boolean;
-  /** 页内按比例跟随；关掉则只对齐到页首 */
+  /** 页内逐行对齐（PDF 文字层逐行比对；没有可用文字层的页按比例）；关掉则只对齐到页首。键名沿用旧的「页内按比例」 */
   proportional: boolean;
   /** 在正文与 PDF 两个窗格里画出阅读线（两边按这条线对齐；只显示、不拦鼠标） */
   showBaseline: boolean;
@@ -66,6 +66,8 @@ export interface PdfSyncSettings {
   onboarded: boolean;
   /** 「上手」里做到了的练习 */
   practice: Record<PracticeId, boolean>;
+  /** 提示过「没有可用的文字层，只能按页跟随」的 PDF（库内路径），每份只提示一次 */
+  textLayerNoticed: string[];
 }
 
 export const DEFAULT_SETTINGS: PdfSyncSettings = {
@@ -87,7 +89,8 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   reducedMotion: false,
   toolbar: { mode: "docked", dock: "markdown", x: 120, y: 120, collapsed: false },
   onboarded: false,
-  practice: { highlight: false, pageEdit: false }
+  practice: { highlight: false, pageEdit: false },
+  textLayerNoticed: []
 };
 
 export function mergeSettings(raw: unknown): PdfSyncSettings {
@@ -100,7 +103,8 @@ export function mergeSettings(raw: unknown): PdfSyncSettings {
     ...rest,
     shadeStyle,
     toolbar: { ...DEFAULT_SETTINGS.toolbar, ...(data.toolbar ?? {}) },
-    practice: { ...DEFAULT_SETTINGS.practice, ...(data.practice ?? {}) }
+    practice: { ...DEFAULT_SETTINGS.practice, ...(data.practice ?? {}) },
+    textLayerNoticed: Array.isArray(data.textLayerNoticed) ? data.textLayerNoticed.filter((item) => typeof item === "string") : []
   };
 }
 
@@ -225,8 +229,8 @@ export class PdfSyncSettingTab extends PluginSettingTab {
             control: { type: "toggle", key: "autoOpen", defaultValue: DEFAULT_SETTINGS.autoOpen }
           },
           {
-            name: "页内按比例跟随",
-            desc: "关掉则只对齐到页首",
+            name: "页内逐行对齐",
+            desc: "按 PDF 文字层逐行对齐正文，阅读线上两边是同一行；没有可用文字层的页按比例。关掉则只对齐到页首",
             control: { type: "toggle", key: "proportional", defaultValue: DEFAULT_SETTINGS.proportional }
           },
           {

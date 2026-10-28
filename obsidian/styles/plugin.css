@@ -1,13 +1,16 @@
 /* 插件自己的样式：正文页码标签、当前页底色、PDF 高亮（不属于 ui/ 组件，用 Obsidian 变量） */
-/* ==== 正文：当前页标示（body 上挂 aps-shade-tint / aps-shade-bar，见 main.ts applyLook） ==== */
-.aps-shade-tint .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+/* ==== 正文：当前页标示（CodeMirror 图层 .aps-page-shade，画法同选区，见 editor-ext.ts；按设置画淡底色或左侧竖条） ==== */
+.aps-page-shade {
+  pointer-events: none;
+}
+.aps-page-shade .aps-current-page {
   background-color: color-mix(in srgb, var(--color-accent) 6%, transparent);
 }
-.theme-dark.aps-shade-tint .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
+.theme-dark .aps-page-shade .aps-current-page {
   background-color: color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
-.aps-shade-bar .markdown-source-view.mod-cm6 .cm-line.aps-current-page {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-accent) 70%, transparent);
+.aps-page-shade .aps-current-page-bar {
+  background-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 /* ==== 阅读线：正文、PDF 两个窗格同一屏幕高度各一条；只显示，不拦鼠标 ==== */
 .aps-baseline-host {

@@ -160,6 +160,186 @@ describe("正文 → PDF 跟随（三种视图）", function () {
   }
 });
 
+/** 只留汉字、字母、数字（去掉锚点注释、标点、空白），两边比字用 */
+function plain(text: string): string {
+  return text.replace(/<!--[\s\S]*?-->/g, "").replace(/\[\^[^\]]+\]/g, "").replace(/[^\p{Unified_Ideograph}a-zA-Z0-9]/gu, "");
+}
+
+/** a 与 b 有没有至少 n 个字连着相同 */
+function sharesRun(a: string, b: string, n = 4): boolean {
+  for (let i = 0; i + n <= a.length; i += 1) if (b.includes(a.slice(i, i + n))) return true;
+  return false;
+}
+
+/** 正文基准线处那个字前后各 30 字 */
+async function markdownAtBaseline(): Promise<string> {
+  return browser.executeObsidian(({ app }) => {
+    const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+    const point = controller.markdownPoint();
+    const text: string = controller.markdownView.data;
+    return point ? text.slice(Math.max(0, point.offset - 30), point.offset + 30) : "";
+  });
+}
+
+/** PDF 基准线压着的那一行字（文字层里与基准线最近的一行 span） */
+async function pdfLineAtBaseline(): Promise<string> {
+  return browser.executeObsidian(({ app }) => {
+    const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+    const container: HTMLElement = controller.pdf.container;
+    const rect = container.getBoundingClientRect();
+    const y = rect.top + rect.height * controller.ratioFor("pdf");
+    const spans = [...container.querySelectorAll<HTMLElement>(".textLayer span")].filter((span) => !span.querySelector("span") && (span.textContent ?? "").trim());
+    const rows = new Map<number, HTMLElement[]>();
+    for (const span of spans) {
+      const box = span.getBoundingClientRect();
+      if (box.width <= 0) continue;
+      const key = Math.round((box.top + box.bottom) / 2 / 4);
+      rows.set(key, [...(rows.get(key) ?? []), span]);
+    }
+    let best: HTMLElement[] = [];
+    let distance = Infinity;
+    for (const row of rows.values()) {
+      const box = row[0].getBoundingClientRect();
+      const d = y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
+      if (d < distance) {
+        distance = d;
+        best = row;
+      }
+    }
+    return best.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((span) => span.textContent).join("");
+  });
+}
+
+describe("逐行对齐", function () {
+  before(async function () {
+    await openBookFile(FILE("03-論正統"));
+  });
+
+  for (const mode of ["live", "source"] as const) {
+    it(`${mode === "source" ? "源码" : "实时预览"}视图：滚动正文，阅读线上 PDF 那一行正是正文这一行（页眉、页下注不算）`, async () => {
+      await setMode(mode);
+      for (const ratio of [0.2, 0.45, 0.7]) {
+        await userScrollMarkdown(ratio);
+        // 第一次落到某页时文字层要现读，读到后会再对一次
+        await settle(900);
+        const markdown = plain(await markdownAtBaseline());
+        const pdf = plain(await pdfLineAtBaseline());
+        expect(pdf.length).toBeGreaterThan(3);
+        expect(sharesRun(pdf, markdown)).toBe(true);
+      }
+      if (mode === "live") await browser.saveScreenshot(`${SCREENSHOTS}/05-逐行对齐.png`);
+    });
+  }
+
+  it("滚 PDF：正文把同一行带到阅读线上", async () => {
+    await setMode("live");
+    const wanted = await browser.executeObsidian(async ({ app }) => {
+      const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+      await controller.jumpToPage(20);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      const container: HTMLElement = controller.pdf.container;
+      const spans: HTMLElement[] = await controller.pdf.textSpans(20);
+      // 页中间一行：把它的中线滚到 PDF 的基准线上
+      const pageBox = container.querySelector<HTMLElement>('.page[data-page-number="20"]')!.getBoundingClientRect();
+      const middle = spans.filter((span) => {
+        const box = span.getBoundingClientRect();
+        return box.top > pageBox.top + pageBox.height * 0.45 && /[一-鿿]{4}/.test(span.textContent ?? "");
+      })[0];
+      if (!middle) return "";
+      container.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 100 }));
+      const rect = container.getBoundingClientRect();
+      const box = middle.getBoundingClientRect();
+      container.scrollTop += (box.top + box.bottom) / 2 - (rect.top + rect.height * controller.ratioFor("pdf"));
+      return middle.textContent ?? "";
+    });
+    expect(plain(wanted).length).toBeGreaterThan(3);
+    await settle(900);
+    const markdown = plain(await markdownAtBaseline());
+    expect(sharesRun(plain(wanted), markdown)).toBe(true);
+  });
+});
+
+describe("当前页底色按页起止", function () {
+  before(async function () {
+    await openBookFile(FILE("03-論正統"));
+    await setMode("live");
+  });
+
+  it("从本页锚点那个字起涂、到下一页锚点止，锚点夹在段中也一样", async () => {
+    await browser.executeObsidian(async ({ app }) => {
+      await (app as any).plugins.plugins["aihistory-pdf-sync"].controller.jumpToPage(19);
+    });
+    await settle(700);
+    // 第 19 页的锚点夹在段中：底色第一块从它的标签左缘起，不从行首起
+    const start = await browser.executeObsidian(({ app }) => {
+      const root: HTMLElement = (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView.contentEl;
+      const marks = [...root.querySelectorAll<HTMLElement>(".aps-page-shade .aps-current-page")].map((el) => el.getBoundingClientRect());
+      const first = marks.reduce<DOMRect | null>((high, box) => (!high || box.top < high.top ? box : high), null);
+      const label = root.querySelector<HTMLElement>('.aps-page-label[data-page="19"]')?.getBoundingClientRect() ?? null;
+      return { first: first && { left: first.left, top: first.top, bottom: first.bottom }, label: label && { left: label.left, top: label.top, bottom: label.bottom } };
+    });
+    expect(start.first).not.toBeNull();
+    expect(start.label).not.toBeNull();
+    expect(Math.abs(start.first!.left - start.label!.left)).toBeLessThan(4);
+    expect(start.first!.top).toBeLessThan(start.label!.bottom);
+    // 把第 20 页的锚点挪到阅读线下面（视口 60% 处）：阅读线仍在第 19 页里，19 页的末尾与 20 页的开头同屏
+    await browser.executeObsidian(({ app }) => {
+      const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+      const scroller: HTMLElement = controller.scroller;
+      const label = scroller.querySelector<HTMLElement>('.aps-page-label[data-page="20"]');
+      const rect = scroller.getBoundingClientRect();
+      scroller.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 100 }));
+      if (label) scroller.scrollTop += label.getBoundingClientRect().top - (rect.top + rect.height * 0.6);
+    });
+    await settle(700);
+    const shape = await browser.executeObsidian(({ app }) => {
+      const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+      const view = controller.markdownView;
+      const root: HTMLElement = view.contentEl;
+      const marks = [...root.querySelectorAll<HTMLElement>(".aps-page-shade .aps-current-page")].map((el) => el.getBoundingClientRect());
+      const label = root.querySelector<HTMLElement>('.aps-page-label[data-page="20"]')?.getBoundingClientRect() ?? null;
+      const last = marks.reduce<DOMRect | null>((low, box) => (!low || box.bottom > low.bottom ? box : low), null);
+      // 第 19 页最后一个字的右缘（第 20 页锚点之前）：标签被挤到下一行行首时，它在上一行行尾
+      const end = view.editor.cm.coordsAtPos(view.data.indexOf("<!--pdf-page.20-->"), -1);
+      const covered = label ? marks.some((box) => box.left < label.right - 1 && box.right > label.left + 1 && box.top < label.bottom - 1 && box.bottom > label.top + 1) : null;
+      return { page: controller.markdownPoint()?.page, count: marks.length, last: last && { right: last.right, bottom: last.bottom }, end: end && { left: end.left, bottom: end.bottom }, covered };
+    });
+    expect(shape.page).toBe(19);
+    expect(shape.count).toBeGreaterThan(0);
+    expect(shape.end).not.toBeNull();
+    // 底色止于第 19 页最后一个字，不盖住第 20 页的标签
+    expect(Math.abs(shape.last!.right - shape.end!.left)).toBeLessThan(4);
+    expect(Math.abs(shape.last!.bottom - shape.end!.bottom)).toBeLessThan(4);
+    expect(shape.covered).toBe(false);
+    await browser.saveScreenshot(`${SCREENSHOTS}/06-当前页底色起止.png`);
+  });
+
+  it("「左侧竖条」样式：只画一根竖条，从本页锚点那一行到下一页锚点那一行", async () => {
+    const setStyle = (style: string) => browser.executeObsidian(({ app }, value) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      plugin.settings.shadeStyle = value;
+      plugin.settingsChanged();
+    }, style);
+    await setStyle("bar");
+    await settle(400);
+    const bar = await browser.executeObsidian(({ app }) => {
+      const root: HTMLElement = (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView.contentEl;
+      const bars = [...root.querySelectorAll<HTMLElement>(".aps-page-shade .aps-current-page-bar")].map((el) => el.getBoundingClientRect());
+      const next = root.querySelector<HTMLElement>('.aps-page-label[data-page="20"]')?.getBoundingClientRect() ?? null;
+      return { tints: root.querySelectorAll(".aps-page-shade .aps-current-page").length, bars: bars.map((box) => ({ width: box.width, height: box.height, bottom: box.bottom })), next: next && { top: next.top, bottom: next.bottom } };
+    });
+    await browser.saveScreenshot(`${SCREENSHOTS}/07-左侧竖条.png`);
+    await setStyle("tint");
+    expect(bar.tints).toBe(0);
+    expect(bar.bars).toHaveLength(1);
+    expect(bar.bars[0].width).toBeCloseTo(2, 0);
+    expect(bar.bars[0].height).toBeGreaterThan(100);
+    // 竖条下端在第 20 页锚点那一行（或它上一行，标签被挤到行首时）
+    expect(bar.bars[0].bottom).toBeLessThanOrEqual(bar.next!.bottom + 2);
+    expect(bar.bars[0].bottom).toBeGreaterThan(bar.next!.top - 40);
+  });
+});
+
 describe("旧格式（只有印刷页锚点）", function () {
   it("第 1 版 book.json 的偏移换算物理页：滚正文，PDF 跟到同一页", async () => {
     await openBookFile("旧格式/旧格式.md");
@@ -314,7 +494,7 @@ describe("实时预览的页码标签与当前页底色", function () {
     await settle(600);
     const live = await browser.executeObsidian(() => ({
       labels: [...document.querySelectorAll(".workspace-leaf.mod-active .aps-page-label, .aps-page-label")].map((el) => el.textContent),
-      shaded: document.querySelectorAll(".cm-line.aps-current-page").length
+      shaded: document.querySelectorAll(".aps-page-shade .aps-current-page").length
     }));
     expect(live.labels).toContain("13 · p.9");
     expect(live.shaded).toBeGreaterThan(0);

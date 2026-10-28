@@ -177,8 +177,8 @@ export function pageSegments(text: string, anchors: Anchor[] = parseAnchors(text
   return segments;
 }
 
-/** 二分：最后一个 from <= offset 的段的下标 */
-function segmentIndexAt(segments: PageSegment[], offset: number): number {
+/** 二分：最后一个 from <= offset 的段的下标；在第一段之前返回 -1 */
+export function segmentIndexAt(segments: PageSegment[], offset: number): number {
   let low = 0;
   let high = segments.length - 1;
   let found = -1;
@@ -205,11 +205,10 @@ export interface PagePosition {
 
 /**
  * 偏移 offset 落在哪一页。脚注定义里带了锚点的按那条脚注的页算；
- * 其余按它前面最近的正文锚点。没有锚点返回 null。
+ * 其余按它前面最近的正文锚点。没有锚点返回 null。notes 是 footnoteRanges 的结果，调用方算过的可以传进来省一遍。
  */
-export function pageAtOffset(text: string, offset: number, anchors: Anchor[] = parseAnchors(text), segments: PageSegment[] = pageSegments(text, anchors)): PagePosition | null {
+export function pageAtOffset(text: string, offset: number, anchors: Anchor[] = parseAnchors(text), segments: PageSegment[] = pageSegments(text, anchors), notes: Array<[number, number]> = footnoteRanges(text)): PagePosition | null {
   if (!segments.length) return null;
-  const notes = footnoteRanges(text);
   for (const [from, to] of notes) {
     if (offset < from || offset >= to) continue;
     // 脚注跨页时注文中间可以再有锚点：取位置之前最近的那个，没有就取这条脚注的第一个
