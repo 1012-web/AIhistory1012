@@ -71,8 +71,18 @@ export default class AIhistoryPdfSync extends Plugin {
       this.suspects.onFileChanged(file);
     }));
     this.registerEvent(this.app.metadataCache.on("changed", (file) => void this.controller.onFileChanged(file)));
-    this.registerEvent(this.app.vault.on("rename", (file) => {
-      if (file instanceof TFile) void this.controller.onFileChanged(file);
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      if (!(file instanceof TFile)) return;
+      void this.controller.onFileChanged(file);
+      if (isPdf(file)) void this.controller.pdfMoved(oldPath, file.path);
+    }));
+    // Obsidian 外改名、移动 PDF：库里只看到删一份、建一份，交给 controller 配成一次挪动。
+    // 启动时库会把每个文件报一遍「建」，等布局好了再听
+    this.registerEvent(this.app.vault.on("delete", (file) => {
+      if (file instanceof TFile && isPdf(file)) this.controller.pdfDeleted(file);
+    }));
+    this.registerEvent(this.app.vault.on("create", (file) => {
+      if (this.app.workspace.layoutReady && file instanceof TFile && isPdf(file)) this.controller.pdfCreated(file);
     }));
 
     this.registerObsidianProtocolHandler(PROTOCOL_ACTION, (params) => {
@@ -205,4 +215,8 @@ export default class AIhistoryPdfSync extends Plugin {
       if (leaf.view instanceof MarkdownView) editorViewOf(leaf.view)?.dispatch({ effects: refreshLabels.of(null) });
     });
   }
+}
+
+function isPdf(file: TFile): boolean {
+  return file.extension.toLowerCase() === "pdf";
 }

@@ -21,7 +21,8 @@ import { editorViewOf, markdownGeometry, markdownPointAt, modeOf, parsedOf, pars
 import { PdfSuggestModal } from "./modals";
 import { openBindDialog, openPagemarkDialog } from "./react-mount";
 import { applyPagemarks, planPagemarks } from "./core/pagemarks";
-import { findNote, Pairer, type Book } from "./pairing";
+import { findNote, Pairer, type Book, type BrokenLink } from "./pairing";
+import { PdfMoveDetector } from "./core/pairing";
 import { delay, leafPdfFile, PdfPane } from "./pdf-view";
 import { buildRevisionRequest } from "./core/revision";
 import { applySyncMode, syncModeOf, type PdfSyncSettings, type PracticeId, type ToolbarState } from "./settings";
@@ -61,6 +62,9 @@ export class SyncController {
   private headingCache: { text: string; list: Heading[]; pages: HeadingPage[] | null } | null = null;
   readonly toolbar: ToolbarHost;
   private markdownDisposers: Disposer[] = [];
+  /** 本次会话里提示过的配对问题，同一件事只提示一次 */
+  private readonly offered = new Set<string>();
+  private readonly moves = new PdfMoveDetector();
   private pdfDisposers: Disposer[] = [];
   /** 两个窗格各一条阅读线（设置「显示阅读线」） */
   private markdownLine: BaselineLine | null = null;
@@ -166,13 +170,17 @@ export class SyncController {
     if (!leaf) return;
     const generation = ++this.generation;
     if (leaf.view instanceof MarkdownView && leaf.view.file) {
-      const book = await this.pairer.book(leaf.view.file);
+      const file = leaf.view.file;
+      const book = await this.pairer.book(file);
       if (generation !== this.generation) return;
       if (!book) {
         if (leaf === this.markdownLeaf) this.detachMarkdown();
+        const { broken } = await this.pairer.diagnose(file);
+        if (broken) this.offerMissing(file, broken);
         return;
       }
       await this.attachMarkdown(leaf, book);
+      if (book.broken) this.offerFallback(file, book);
       return;
     }
     const pdfFile = leafPdfFile(leaf);
@@ -972,24 +980,86 @@ export class SyncController {
       new Notice("先打开这本书的一篇笔记");
       return;
     }
-    new PdfSuggestModal(this.app, (pdf) => {
-      const candidates = this.pairer.bindCandidates(file);
-      openBindDialog(this.markdownView?.containerEl.doc ?? this.app.workspace.containerEl.doc, {
-        pdfPath: pdf.path,
-        files: candidates.map((candidate) => candidate.path),
-        reducedMotion: this.settings.reducedMotion,
-        onConfirm: (paths) => {
-          const files = candidates.filter((candidate) => paths.includes(candidate.path));
-          void this.pairer.bind(files, pdf).then(async () => {
-            new Notice(`已把 ${files.length} 篇笔记配到 ${pdf.name}`);
-            await delay(200);
-            const leaf = this.markdownLeaf ?? this.app.workspace.getMostRecentLeaf();
-            if (leaf) await this.onActiveLeaf(leaf);
-            onBound?.();
-          });
-        }
+    new PdfSuggestModal(this.app, (pdf) => this.confirmBind(pdf, this.pairer.bindCandidates(file), onBound)).open();
+  }
+
+  /** 列出要写的笔记、用户勾选确认后，把 pdf 写进它们的 frontmatter */
+  private confirmBind(pdf: TFile, candidates: TFile[], onBound: (() => void) | null = null): void {
+    openBindDialog(this.markdownView?.containerEl.doc ?? this.app.workspace.containerEl.doc, {
+      pdfPath: pdf.path,
+      files: candidates.map((candidate) => candidate.path),
+      reducedMotion: this.settings.reducedMotion,
+      onConfirm: (paths) => {
+        const files = candidates.filter((candidate) => paths.includes(candidate.path));
+        void this.pairer.bind(files, pdf).then(async () => {
+          new Notice(`已把 ${files.length} 篇笔记配到 ${pdf.name}`);
+          await delay(200);
+          const leaf = this.markdownLeaf ?? this.app.workspace.getMostRecentLeaf();
+          if (leaf) await this.onActiveLeaf(leaf);
+          onBound?.();
+        });
+      }
+    });
+  }
+
+  // ---------- 配对失效的提示 ----------
+
+  /** 写的 PDF 找不到、别的办法也找不到：提示并给「重新配对」 */
+  private offerMissing(file: TFile, broken: BrokenLink): void {
+    this.offer(`missing|${broken.root}|${broken.link}`,
+      `找不到这本书的 PDF：${describeBroken(broken)}，库里没有这个文件。可能在 Obsidian 外改了名或挪了地方。`,
+      "重新配对",
+      () => this.chooseAndBind(file));
+  }
+
+  /** 写的 PDF 找不到、但按文件夹或同名找到了一份：提示并给「写回笔记」 */
+  private offerFallback(file: TFile, book: Book): void {
+    const broken = book.broken;
+    if (!broken) return;
+    this.offer(`fallback|${broken.root}|${broken.link}|${book.pdf.path}`,
+      `${describeBroken(broken)}，库里找不到；先按「${book.pdf.path}」打开了。核对没错的话，把新位置写回笔记，下次就不再靠猜。`,
+      "写回笔记",
+      () => this.confirmBind(book.pdf, this.pairer.bindCandidates(file)));
+  }
+
+  /** 库里看到删了一份 PDF（Obsidian 外改名、移动时只报删和建） */
+  pdfDeleted(file: TFile): void {
+    const move = this.moves.deletedPdf({ path: file.path, size: file.stat.size, at: Date.now() });
+    if (move) void this.pdfMoved(move.from, move.to);
+  }
+
+  pdfCreated(file: TFile): void {
+    const move = this.moves.createdPdf({ path: file.path, size: file.stat.size, at: Date.now() });
+    if (move) void this.pdfMoved(move.from, move.to);
+  }
+
+  /** PDF 从 from 挪到了 to（改名、移动）：还有笔记指着旧名的，提示并给「重新配对」 */
+  async pdfMoved(from: string, to: string): Promise<void> {
+    // Obsidian 里改名时，设置开了「自动更新内部链接」会顺手改 frontmatter；等它改完再看还剩哪些
+    await delay(800);
+    const pdf = this.app.vault.getAbstractFileByPath(to);
+    if (!(pdf instanceof TFile)) return;
+    const notes = this.pairer.notesPointingTo(from);
+    if (!notes.length) return;
+    this.offer(`moved|${from}|${to}`,
+      `「${from}」像是改名或挪到了「${to}」，还有 ${notes.length} 篇笔记指着旧名。`,
+      "重新配对",
+      () => this.confirmBind(pdf, notes));
+  }
+
+  /** 右上角提示，带一个按钮；同一件事一次会话只提示一次 */
+  private offer(key: string, message: string, action: string, run: () => void): void {
+    if (this.offered.has(key)) return;
+    this.offered.add(key);
+    const notice = new Notice(createFragment((fragment) => {
+      fragment.createDiv({ text: message });
+      const button = fragment.createEl("button", { text: action, cls: "mod-cta aps-notice-action" });
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        notice.hide();
+        run();
       });
-    }).open();
+    }), 30000);
   }
 
   /** 正文基准线处的页与页内比例（状态显示、测试用） */
@@ -1025,4 +1095,8 @@ export class SyncController {
     const view = this.markdownView;
     return view ? scrollerOf(view) : null;
   }
+}
+
+function describeBroken(broken: BrokenLink): string {
+  return broken.from === "frontmatter" ? `笔记 frontmatter 写的「${broken.link}」` : `book.json 写的「${broken.link}」`;
 }

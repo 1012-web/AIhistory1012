@@ -4,11 +4,12 @@
  * 找 PDF 依次看：frontmatter `pdf` → 本文件夹或上一级的 `_数据/book.json` → 本文件夹或上一级里唯一的 PDF
  * （`X.pdf` 与 `X.文字层.pdf` 成对时算一份，取文字层副本）→ 同名 PDF。
  * 书的成员：book.json 列了文件就照它，否则是书文件夹里配到同一个 PDF 的全部 Markdown（无锚点的目录、索引也算）。
+ * frontmatter 或 book.json 写了 PDF、库里却没有（多半在 Obsidian 外改了名、挪了地方）：记成 broken，交给界面提示用户重新配对。
  */
 import { TFile, TFolder, type App } from "obsidian";
 import { buildBookIndex, indexEntry, type BookIndex } from "./core/book-index";
 
-import { BOOK_JSON, DATA_DIR, TEXT_LAYER_SUFFIX, uniquePdf as uniqueByPath, type BookJson, type PairSource } from "./core/pairing";
+import { BOOK_JSON, DATA_DIR, linkPointsTo, TEXT_LAYER_SUFFIX, uniquePdf as uniqueByPath, type BookJson, type PairSource } from "./core/pairing";
 import { linkpathOf } from "./core/frontmatter";
 
 export { BOOK_JSON, DATA_DIR, TEXT_LAYER_SUFFIX, linkpathOf, type BookJson, type PairSource };
@@ -20,6 +21,20 @@ export interface Pairing {
   root: string;
 }
 
+/** 笔记写了、库里找不到的 PDF */
+export interface BrokenLink {
+  /** 写的是什么：frontmatter 的 linkpath，或 book.json 里的相对路径 */
+  link: string;
+  from: "frontmatter" | "book.json";
+  /** 书文件夹（找到 book.json 的那一级，否则笔记所在文件夹） */
+  root: string;
+}
+
+export interface Diagnosis {
+  pairing: Pairing | null;
+  broken: BrokenLink | null;
+}
+
 export interface Book {
   pdf: TFile;
   root: string;
@@ -27,6 +42,8 @@ export interface Book {
   index: BookIndex;
   /** 每个成员的正文（读索引时顺带留下，跟随时按页查段要用） */
   texts: Map<string, string>;
+  /** 写的 PDF 找不到、靠后面的办法找到了这一份时，记下写的是什么 */
+  broken: BrokenLink | null;
 }
 
 function joinPath(root: string, relative: string): string {
@@ -98,30 +115,47 @@ export class Pairer {
   }
 
   async resolve(file: TFile): Promise<Pairing | null> {
+    return (await this.diagnose(file)).pairing;
+  }
+
+  /** 找 PDF，顺带记下写了却找不到的那个链接 */
+  async diagnose(file: TFile): Promise<Diagnosis> {
     const folders = this.folders(file);
+    let broken: BrokenLink | null = null;
     const frontmatter: Record<string, unknown> | undefined = this.app.metadataCache.getFileCache(file)?.frontmatter;
     const linkpath = linkpathOf(frontmatter?.pdf);
     if (linkpath) {
+      const root = await this.bookRootFor(file, folders);
       const target = this.app.metadataCache.getFirstLinkpathDest(linkpath, file.path);
       if (target instanceof TFile && target.extension.toLowerCase() === "pdf") {
-        return { pdf: target, source: "frontmatter", root: await this.bookRootFor(file, folders) };
+        return { pairing: { pdf: target, source: "frontmatter", root }, broken: null };
       }
+      broken = { link: linkpath, from: "frontmatter", root };
     }
     for (const root of folders) {
       const book = await this.readBookJson(root);
       if (book?.pdf) {
         const pdf = this.pdfAt(joinPath(root, book.pdf));
-        if (pdf) return { pdf, source: "book.json", root };
+        if (pdf) return { pairing: { pdf, source: "book.json", root }, broken };
+        broken ??= { link: book.pdf, from: "book.json", root };
       }
     }
     for (const root of folders) {
       const pdf = uniquePdf(this.pdfsIn(root));
-      if (pdf) return { pdf, source: "folder", root };
+      if (pdf) return { pairing: { pdf, source: "folder", root }, broken };
     }
     const sameName = this.app.vault.getFiles().find((candidate) => candidate.extension.toLowerCase() === "pdf"
       && (candidate.basename === file.basename || candidate.basename === `${file.basename}${TEXT_LAYER_SUFFIX}`));
-    if (sameName) return { pdf: sameName, source: "same-name", root: folders[0] };
-    return null;
+    if (sameName) return { pairing: { pdf: sameName, source: "same-name", root: folders[0] }, broken };
+    return { pairing: null, broken };
+  }
+
+  /** frontmatter 的 pdf 指着 oldPath、现在又解析不到的笔记（PDF 被挪走或改名之后还指着旧名的） */
+  notesPointingTo(oldPath: string): TFile[] {
+    return this.app.vault.getMarkdownFiles().filter((note) => {
+      const linkpath = linkpathOf(this.app.metadataCache.getFileCache(note)?.frontmatter?.pdf);
+      return !!linkpath && linkPointsTo(linkpath, oldPath) && !this.app.metadataCache.getFirstLinkpathDest(linkpath, note.path);
+    });
   }
 
   /** frontmatter 配对时书文件夹：有 book.json 的那一级，否则本文件夹 */
@@ -138,7 +172,7 @@ export class Pairer {
   }
 
   async book(file: TFile): Promise<Book | null> {
-    const pairing = await this.resolve(file);
+    const { pairing, broken } = await this.diagnose(file);
     if (!pairing) return null;
     const json = await this.readBookJson(pairing.root);
     let order: string[] | null = null;
@@ -165,7 +199,7 @@ export class Pairer {
     for (const member of members) texts.set(member.path, await this.app.vault.cachedRead(member));
     const offset = typeof json?.printedPageOffset === "number" ? json.printedPageOffset : null;
     const entries = members.map((member) => indexEntry(member.path, texts.get(member.path) ?? "", offset));
-    return { pdf: pairing.pdf, root: pairing.root, members, index: buildBookIndex(pairing.pdf.path, pairing.root, entries, order, offset), texts };
+    return { pdf: pairing.pdf, root: pairing.root, members, index: buildBookIndex(pairing.pdf.path, pairing.root, entries, order, offset), texts, broken };
   }
 
   /** 手动绑定：写进这些文件的 frontmatter `pdf` */
