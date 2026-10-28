@@ -30,7 +30,7 @@ npm run workbench -- "D:\书\新史學"
 
 ## 演示站（线上，只读）
 
-线上预览在 <https://pdf2md.1012.wiki/demo/>：同一套界面静态导出的一份，读的是站点自带的公版样例书，能翻页、对照、选字高亮、搜索，**不能存盘**（没有本机文件夹可写）。
+线上预览原在 <https://pdf2md.1012.wiki/demo/>（2026-10-28 起暂停，访问为 404；本机用下面的 `npm run demo:serve` 看）：同一套界面静态导出的一份，读的是站点自带的公版样例书，能翻页、对照、选字高亮、搜索，**不能存盘**（没有本机文件夹可写）。
 
 ```bash
 npm run demo        # 造演示书 → next build（output: export，basePath /demo）→ 拷进 ../site/demo/

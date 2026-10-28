@@ -4,7 +4,7 @@
 
 它读的书，由配套的 agent skill **book2md1012** 整理：把论文、专著、教材及现代排版古籍的 PDF 交给 AI，MinerU 与 PaddleOCR 两家云端识别交叉核对，整理成逐页对得回原书的 Markdown。skill 在另一个仓库：[1012-web/AIHIST-skills-1012](https://github.com/1012-web/AIHIST-skills-1012)。
 
-**线上预览**：<https://pdf2md.1012.wiki/>，其中 `/demo/` 是只读演示站（自带公版《新史學》样例书，能翻页、对照、选字高亮、搜索，不能存盘）。主页在 `site/`，演示站由 `web/` 静态导出，`.github/workflows/pages.yml` 推 main 就重建。
+**线上预览（暂停）**：仓库改为私有后 GitHub Pages 未再发布，2026-10-28 起 <https://pdf2md.1012.wiki/> 访问为 404；恢复前请在本机跑 `npm run demo:serve` 看效果。原本 `/demo/` 是只读演示站（自带公版《新史學》样例书，能翻页、对照、选字高亮、搜索，不能存盘）。主页在 `site/`，演示站由 `web/` 静态导出，`.github/workflows/pages.yml` 推 main 就重建。
 
 本仓库装两样东西：
 
