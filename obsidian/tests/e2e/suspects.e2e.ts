@@ -152,4 +152,43 @@ describe("判字", function () {
     });
     expect(around).toBe("孟子·萬章上");
   });
+
+  it("重判：已改的字按现在的字定位，校注只留最后一行；面板里按 U 撤回，正文、清单、校注都回到没判", async () => {
+    const editorText = () => browser.executeObsidian(({ app }) => (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView.editor.getValue() as string);
+    const rows = async () => ((await read(NOTES)) ?? "").split("\n").filter((row) => row.startsWith("| C901 |"));
+    // 第一条已判作「辟」：改判删去，再改判回「闢」
+    await browser.executeObsidian(async ({ app }) => {
+      await (app as any).plugins.plugins["aihistory-pdf-sync"].suspects.decide("C901", "");
+    });
+    expect(await editorText()).toContain("則辭而之，固非");
+    expect(await rows()).toEqual(["| C901 | PDF 第 18 页（03-論正統.md） | 闢 | （删） | 人工看图 |"]);
+    await browser.executeObsidian(async ({ app }) => {
+      await (app as any).plugins.plugins["aihistory-pdf-sync"].suspects.decide("C901", "闢");
+    });
+    expect(await editorText()).toContain("則辭而闢之，固非");
+    expect(await rows()).toEqual(["| C901 | PDF 第 18 页（03-論正統.md） | 闢 | （维持原字） | 人工看图 |"]);
+
+    // 改判作「辟」，再在面板里撤回
+    await browser.executeObsidian(async ({ app }) => {
+      const desk = (app as any).plugins.plugins["aihistory-pdf-sync"].suspects;
+      await desk.decide("C901", "辟");
+      desk.showInPanel("C901");
+    });
+    await browser.waitUntil(async () => browser.executeObsidian(() => document.querySelector(".aps-suspect-card .aps-suspect-meta")?.textContent?.includes("C901") ?? false), { timeoutMsg: "面板没换到 C901" });
+    const badge = await browser.executeObsidian(() => {
+      const root = document.querySelector<HTMLElement>(".aps-suspects")!;
+      root.focus();
+      return getComputedStyle(root.querySelector(".aps-suspects-focus")!).display;
+    });
+    expect(badge).not.toBe("none");
+    await browser.executeObsidian(() => {
+      document.querySelector(".aps-suspects")!.dispatchEvent(new KeyboardEvent("keydown", { key: "u", bubbles: true }));
+    });
+    await browser.waitUntil(async () => line(await read(LIST), "C901").startsWith("- [ ]"), { timeoutMsg: "清单没回到没判" });
+    expect(line(await read(LIST), "C901")).not.toMatch(/判定作|存疑（/);
+    expect(await editorText()).toContain("則辭而闢之，固非");
+    expect(await rows()).toEqual([]);
+    // 别的条目的行还在，这一节不删
+    expect(await read(NOTES)).toContain("| C903 |");
+  });
 });

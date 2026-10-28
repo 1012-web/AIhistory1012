@@ -36,7 +36,11 @@ export interface SuspectPanelProps {
   onReveal: (key: string) => void;
   onChoose: (key: string, text: string) => Promise<boolean>;
   onDoubt: (key: string) => Promise<boolean>;
+  /** 撤回判定或存疑：正文改回现字，清单回到没判，校注删掉这一行 */
+  onWithdraw: (key: string) => Promise<boolean>;
   onOpenList: () => void;
+  /** 在新标签页里打开这一条的截图原图 */
+  onOpenImage: (key: string) => void;
 }
 
 const STATE_LABEL: Record<SuspectCardState, string> = { open: "未判", done: "已判", doubt: "存疑" };
@@ -121,6 +125,17 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
   };
   const choose = (text: string) => settle(() => props.onChoose(card!.key, text));
   const doubt = () => settle(() => props.onDoubt(card!.key));
+  // 撤回后留在这一条（不跳下一条），好接着重判
+  const withdraw = async () => {
+    if (!card || busy || card.state === "open") return;
+    setBusy(true);
+    try {
+      await props.onWithdraw(card.key);
+    } finally {
+      setBusy(false);
+      rootRef.current?.focus({ preventScroll: true });
+    }
+  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target instanceof HTMLInputElement || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -128,6 +143,9 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
     if (digit && card && digit <= card.readings.length) {
       event.preventDefault();
       void choose(card.readings[digit - 1].text);
+    } else if (event.key === "u" || event.key === "U") {
+      event.preventDefault();
+      void withdraw();
     } else if (event.key === "s" || event.key === "S") {
       event.preventDefault();
       void doubt();
@@ -162,6 +180,7 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
           <div className="aps-suspects-title">
             <button type="button" className="aps-link-button" onClick={props.onOpenList} title="打开疑字清单">{props.title}</button>
           </div>
+          <span className="aps-suspects-focus" aria-hidden="true">按键在面板里</span>
           <div className="aps-suspects-count">已判 {counts.done} / 共 {cards.length}{counts.doubt ? ` · 存疑 ${counts.doubt}` : ""}</div>
           <CheckRow checked={onlyOpen} onChange={setOnlyOpen} label="只看没判的" />
         </div>
@@ -180,7 +199,20 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
                 <span>{[card.id, card.kind, card.page ? `PDF 第 ${card.page} 页` : null].filter(Boolean).join(" · ")}</span>
                 <span className={`aps-suspect-state is-${card.state}`}>{STATE_LABEL[card.state]}{card.state === "done" && card.chosen !== null ? `：${showText(card.chosen)}` : ""}</span>
               </div>
-              {card.image ? <img className="aps-suspect-image" src={card.image} alt={`${card.id ?? "疑字"}的原页截图`} /> : null}
+              {card.image ? (
+                // 截图是一整行的长条（右端是放大的疑字与各家读法）：按可读的高度显示、可横向拖动，先停在右端；点了开原图
+                <div className="aps-suspect-strip" title="点开看原图；左右拖动看整行">
+                  <img
+                    src={card.image}
+                    alt={`${card.id ?? "疑字"}的原页截图`}
+                    onLoad={(event) => {
+                      const strip = event.currentTarget.parentElement;
+                      if (strip) strip.scrollLeft = strip.scrollWidth;
+                    }}
+                    onClick={() => props.onOpenImage(card.key)}
+                  />
+                </div>
+              ) : null}
               <p className="aps-suspect-context">
                 {card.before}<mark>{showText(card.current)}</mark>{card.after}
               </p>
@@ -221,6 +253,7 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
               </form>
               <div className="aps-suspect-actions">
                 <button type="button" disabled={busy} onClick={() => void doubt()}><kbd>S</kbd> 存疑</button>
+                {card.state !== "open" ? <button type="button" disabled={busy} onClick={() => void withdraw()}><kbd>U</kbd> 撤回</button> : null}
                 <span className="aps-spacer" />
                 <button type="button" onClick={() => move(-1)} aria-label="上一条">◀</button>
                 <button type="button" onClick={() => move(1)} aria-label="下一条">▶</button>
@@ -231,7 +264,7 @@ export function SuspectPanel(props: SuspectPanelProps): ReactElement {
           <p className="aps-muted">{cards.length ? "都判完了。" : "清单里没有条目。"}</p>
         )}
 
-        <p className="aps-hint aps-suspects-keys">数字键选读法 · F 自填 · S 存疑 · ←/→ 换条 · 回车重新跳到原页</p>
+        <p className="aps-hint aps-suspects-keys">数字键选读法 · F 自填 · S 存疑 · U 撤回 · ←/→ 换条 · 回车重新跳到原页。按键只在面板有焦点时（标题旁显示「按键在面板里」）才起作用</p>
 
         <ol className="aps-suspects-list">
           {visible.map((item) => (

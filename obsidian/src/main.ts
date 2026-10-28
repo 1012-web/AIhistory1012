@@ -130,7 +130,11 @@ export default class AIhistoryPdfSync extends Plugin {
     });
 
     this.app.workspace.onLayoutReady(() => {
-      void this.controller.onActiveLeaf(this.app.workspace.getMostRecentLeaf());
+      // 从主编辑区的正文窗格找书：最近活动的若是侧栏（判字面板）或 PDF，按它找不到书，工具条、判字面板就一直空着
+      const workspace = this.app.workspace;
+      const recent = workspace.getMostRecentLeaf(workspace.rootSplit);
+      const note = recent?.view instanceof MarkdownView ? recent : workspace.getLeavesOfType("markdown").find((leaf) => leaf.getRoot() === workspace.rootSplit) ?? null;
+      void this.controller.onActiveLeaf(note ?? recent ?? workspace.getMostRecentLeaf());
       // 首次启用：库里没有配了 PDF 的笔记就现在弹引导；有的话等第一次打开那样的笔记时弹
       this.onboarding.maybeShowOnLoad();
     });

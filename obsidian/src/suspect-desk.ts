@@ -7,7 +7,7 @@ import { MarkdownView, Notice, TFile, TFolder, type App } from "obsidian";
 import { findNote } from "./pairing";
 import type { SyncController } from "./controller";
 import { editorViewOf, modeOf, parsedText } from "./markdown-pane";
-import { appendNote, EMPTY_MARK, LIST_SUFFIX, locateItem, markInList, notesPathFor, parseSuspectList, today, type SuspectItem } from "./core/suspects";
+import { appendNote, asNow, clearInList, EMPTY_MARK, LIST_SUFFIX, locateItem, markInList, notesPathFor, parseSuspectList, removeNotes, today, type SuspectItem } from "./core/suspects";
 import { pushSuspectMarks, type SuspectMark } from "./suspect-ext";
 import type { SuspectCard } from "./ui";
 
@@ -115,6 +115,12 @@ export class SuspectDesk {
     if (this.list) await this.app.workspace.getLeaf("tab").openFile(this.list);
   }
 
+  async openImage(key: string): Promise<void> {
+    const path = this.itemFor(key)?.image;
+    const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
+    if (file instanceof TFile) await this.app.workspace.getLeaf("tab").openFile(file);
+  }
+
   showInPanel(key: string): void {
     this.focusKey = key;
     this.focusSerial += 1;
@@ -124,39 +130,38 @@ export class SuspectDesk {
 
   /** 跳到原页、正文选中这个字；焦点不离开面板 */
   async reveal(key: string): Promise<void> {
-    const item = this.itemFor(key);
-    if (!item) return;
+    const found = this.itemFor(key);
+    if (!found) return;
+    // 判过并改了字的，正文里现在是定作的字
+    const item = asNow(found);
     const note = this.resolveNote(item.link.file);
     await this.host.controller.openSuspectLink(note ? { ...item.link, file: note.path } : item.link, { focus: false });
   }
 
   // ---------- 判定 ----------
 
-  /** chosen 为 null 表示存疑；返回是否写成 */
+  /**
+   * chosen 为 null 表示存疑；返回是否写成。
+   * 判过的再判：按正文现在的字（上次定作的）定位，校注里这一条的旧行换成新的一行（原字仍记清单上的现字）。
+   * 改过字的又记存疑：正文先改回原字，免得清单说「没判」而正文已改。
+   */
   async decide(key: string, chosen: string | null): Promise<boolean> {
     const item = this.itemFor(key);
     const list = this.list;
     if (!item || !list) return false;
     const label = item.id ?? "这一条";
     const note = this.resolveNote(item.link.file);
-    if (chosen !== null) {
+    const now = asNow(item);
+    const target = chosen ?? item.link.text;
+    if (target !== now.link.text) {
       if (!note) {
         new Notice(`找不到笔记：${item.link.file}`);
         return false;
       }
-      if (chosen !== item.link.text && !(await this.replaceInNote(note, item, chosen))) return false;
+      if (!(await this.replaceInNote(note, now, target))) return false;
     }
-    let missing = false;
-    await this.app.vault.process(list, (current) => {
-      const next = markInList(current, item, chosen, today());
-      if (next === null) {
-        missing = true;
-        return current;
-      }
-      return next;
-    });
-    if (missing) new Notice(`清单里没找到 ${label}（清单可能刚改过），正文${chosen !== null && chosen !== item.link.text ? "已改、" : ""}清单未记`);
-    if (chosen !== null && note) await this.appendNotes(list, item, note, chosen);
+    if (!(await this.writeList(list, label, (text) => markInList(text, item, chosen, today())))) return false;
+    await this.writeNotes(list, item, note, chosen);
     await this.reload();
     if (chosen === null) new Notice(`${label} 记为存疑`);
     else if (chosen === item.link.text) new Notice(`${label} 维持「${shown(chosen)}」`);
@@ -164,10 +169,41 @@ export class SuspectDesk {
     return true;
   }
 
+  /** 撤回判定：正文改回清单上的现字，清单这一条回到没判，校注里这一条的行删掉 */
+  async withdraw(key: string): Promise<boolean> {
+    const item = this.itemFor(key);
+    const list = this.list;
+    if (!item || !list) return false;
+    const label = item.id ?? "这一条";
+    if (item.state === "open") {
+      new Notice(`${label} 还没判，不用撤回`);
+      return false;
+    }
+    const note = this.resolveNote(item.link.file);
+    const now = asNow(item);
+    if (now !== item && !(note && (await this.replaceInNote(note, now, item.link.text)))) return false;
+    if (!(await this.writeList(list, label, (text) => clearInList(text, item)))) return false;
+    await this.writeNotes(list, item, note, null);
+    await this.reload();
+    new Notice(`${label} 已撤回：正文是「${shown(item.link.text)}」，回到没判`);
+    return true;
+  }
+
+  private async writeList(list: TFile, label: string, edit: (text: string) => string | null): Promise<boolean> {
+    let missing = false;
+    await this.app.vault.process(list, (current) => {
+      const next = edit(current);
+      if (next === null) missing = true;
+      return next ?? current;
+    });
+    if (missing) new Notice(`清单里没找到 ${label}（清单可能刚改过），清单未记；正文若已改，请用 Ctrl+Z 或手改回去`);
+    return !missing;
+  }
+
   private problem(item: SuspectItem, at: { exact: boolean; found: string } | null): string | null {
     const where = item.link.page ? `第 ${item.link.page} 页` : "正文";
     if (!at) return `${where}里没找到「${shown(item.link.text)}」，没有改；请到正文里手改`;
-    if (!at.exact) return `${where}这里现在是「${shown(at.found)}」，与清单记的「${shown(item.link.text)}」不同，没有改；请到正文里手改`;
+    if (!at.exact) return `${where}这里现在是「${shown(at.found)}」，不是应有的「${shown(item.link.text)}」（正文可能手改过），没有改；请到正文里手改`;
     return null;
   }
 
@@ -201,14 +237,19 @@ export class SuspectDesk {
     return problem === null;
   }
 
-  private async appendNotes(list: TFile, item: SuspectItem, note: TFile, chosen: string): Promise<void> {
+  /** 校注：先删这一条的旧行；chosen 不为 null 时再补一行（原字是清单上的现字，即这条的净改动） */
+  private async writeNotes(list: TFile, item: SuspectItem, note: TFile | null, chosen: string | null): Promise<void> {
     const path = notesPathFor(list.path);
-    const row = { id: item.id, page: item.link.page, file: note.name, from: item.link.text, to: chosen };
+    const row = chosen === null ? null : { id: item.id, page: item.link.page, file: note?.name ?? item.link.file, from: item.link.text, to: chosen };
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing instanceof TFile) {
-      await this.app.vault.process(existing, (text) => appendNote(text, row));
+      await this.app.vault.process(existing, (text) => {
+        const cleaned = removeNotes(text, item.id);
+        return row ? appendNote(cleaned, row) : cleaned;
+      });
       return;
     }
+    if (!row) return;
     const about = list.basename.replace(/\.疑字清单$/, "");
     await this.app.vault.create(path, appendNote(`---\ntype: AI校注\nabout: ${about}\n---\n\n# ${about} · AI 校注\n`, row));
   }
@@ -253,7 +294,17 @@ export class SuspectDesk {
     const root = createDiv({ cls: "aps-suspect-tip" });
     root.createDiv({ cls: "aps-suspect-meta", text: [item.id, item.kind, item.link.page ? `PDF 第 ${item.link.page} 页` : null, item.state === "doubt" ? "存疑" : null].filter(Boolean).join(" · ") });
     const image = item.image ? this.app.vault.getAbstractFileByPath(item.image) : null;
-    if (image instanceof TFile) root.createEl("img", { cls: "aps-suspect-image", attr: { src: this.app.vault.getResourcePath(image), alt: "原页截图" } });
+    if (image instanceof TFile) {
+      const strip = root.createDiv({ cls: "aps-suspect-strip", attr: { title: "点开看原图；左右拖动看整行" } });
+      const img = strip.createEl("img", { attr: { src: this.app.vault.getResourcePath(image), alt: "原页截图" } });
+      img.addEventListener("load", () => {
+        strip.scrollLeft = strip.scrollWidth;
+      });
+      img.addEventListener("click", () => {
+        close();
+        void this.openImage(key);
+      });
+    }
     if (item.note) root.createEl("p", { cls: "aps-suspect-note", text: item.note });
     const run = (chosen: string | null) => {
       close();
@@ -274,7 +325,14 @@ export class SuspectDesk {
       if (input.value.trim()) run(input.value.trim());
     });
     const actions = root.createDiv({ cls: "aps-suspect-actions" });
-    actions.createEl("button", { text: "存疑", attr: { type: "button" } }).addEventListener("click", () => run(null));
+    if (item.state === "doubt") {
+      actions.createEl("button", { text: "撤回存疑", attr: { type: "button" } }).addEventListener("click", () => {
+        close();
+        void this.withdraw(key);
+      });
+    } else {
+      actions.createEl("button", { text: "存疑", attr: { type: "button" } }).addEventListener("click", () => run(null));
+    }
     actions.createEl("button", { text: "在判字面板里看", attr: { type: "button" } }).addEventListener("click", () => {
       close();
       this.showInPanel(key);

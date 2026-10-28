@@ -193,6 +193,23 @@ export function locateItem(text: string, parsed: { segments: PageSegment[]; anch
   return segment ? locateIn(text, segment.from, text.slice(segment.from, segment.to), item) : null;
 }
 
+/**
+ * 按正文「现在」的样子定位用的条目：判过并改了字的，正文里已是定作的字（清单链接记的还是原来的现字），
+ * 现字与 ctx 里那一处都换成定作的字；没改过字的原样返回。重判、撤回时用。
+ */
+export function asNow(item: SuspectItem): SuspectItem {
+  const chosen = item.chosen;
+  if (item.state !== "done" || chosen === null || chosen === item.link.text) return item;
+  const { text, ctx } = item.link;
+  const found = text ? ctx.indexOf(text) : item.display ? insertionInCtx(ctx, item.display.before) : null;
+  const at = found === null || found === -1 ? null : found;
+  return {
+    ...item,
+    link: { ...item.link, text: chosen, ctx: at === null ? ctx : ctx.slice(0, at) + chosen + ctx.slice(at + text.length) },
+    display: item.display && { ...item.display, current: chosen }
+  };
+}
+
 /** 只有链接（点清单里的 obsidian:// 链接时）：同 locateItem，现字为空时没有展示上下文可用 */
 export function locateLink(text: string, parsed: { segments: PageSegment[]; anchors: Anchor[] }, link: SuspectLink): Located | null {
   const item: SuspectItem = { id: null, line: 0, raw: "", state: "open", link, kind: "", display: null, readings: [], note: "", image: null, chosen: null };
@@ -215,17 +232,23 @@ function shown(text: string): string {
  * 再判一次会把旧记号换掉；存疑后又判定，存疑记号去掉。
  */
 export function markInList(listText: string, item: SuspectItem, chosen: string | null, date: string): string | null {
+  return rewriteListLine(listText, item, (line) => (chosen === null
+    ? line.replace(/- \[[xX]\]/, "- [ ]") + ` · 存疑（${date}）`
+    : line.replace(/- \[ \]/, "- [x]") + ` · 判定作【${shown(chosen)}】（${date}）`));
+}
+
+/** 撤回：这一条回到没判（去掉勾、判定与存疑记号）；找不到返回 null */
+export function clearInList(listText: string, item: SuspectItem): string | null {
+  return rewriteListLine(listText, item, (line) => line.replace(/- \[[xX]\]/, "- [ ]"));
+}
+
+/** 找到清单里的这一条，去掉旧记号后交给 edit 改写 */
+function rewriteListLine(listText: string, item: SuspectItem, edit: (bare: string) => string): string | null {
   const lines = listText.split("\n");
-  const fresh = parseSuspectList(listText);
-  const target = fresh.find((candidate) => sameItem(candidate, item));
+  const target = parseSuspectList(listText).find((candidate) => sameItem(candidate, item));
   if (!target) return null;
   const crlf = lines[target.line].endsWith("\r");
-  let line = target.raw.replace(DECIDED_RE, "").replace(DOUBT_RE, "");
-  if (chosen === null) {
-    line = line.replace(/- \[[xX]\]/, "- [ ]") + ` · 存疑（${date}）`;
-  } else {
-    line = line.replace(/- \[ \]/, "- [x]") + ` · 判定作【${shown(chosen)}】（${date}）`;
-  }
+  const line = edit(target.raw.replace(DECIDED_RE, "").replace(DOUBT_RE, ""));
   lines[target.line] = crlf ? `${line}\r` : line;
   return lines.join("\n");
 }
@@ -274,6 +297,29 @@ export function appendNote(notesText: string, row: NoteRow): string {
     lines.splice(lastRow + 1, 0, line);
   }
   return lines.join("\n");
+}
+
+/**
+ * 校注「用户判定的疑字」一节里删掉这个编号的行（重判前、撤回时）；删完表里没有行了，整节去掉。
+ * 没有这一节、或编号为空时原样返回。
+ */
+export function removeNotes(notesText: string, id: string | null): string {
+  if (!id) return notesText;
+  const lines = notesText.split("\n");
+  const head = lines.findIndex((text) => text.trim() === NOTES_HEADING);
+  if (head === -1) return notesText;
+  let end = head + 1;
+  while (end < lines.length && !/^#{1,6} /.test(lines[end])) end += 1;
+  const isRow = (text: string) => text.trim().startsWith("|") && !/^\|\s*(编号|-)/.test(text.trim());
+  const mine = (text: string) => isRow(text) && text.split("|")[1]?.trim() === id;
+  const section = lines.slice(head, end).filter((text) => !mine(text));
+  if (section.some(isRow)) return [...lines.slice(0, head), ...section, ...lines.slice(end)].join("\n");
+  // 整节去掉，连同前面多出来的空行
+  let start = head;
+  while (start > 0 && lines[start - 1].trim() === "") start -= 1;
+  const rest = lines.slice(end);
+  const kept = [...lines.slice(0, start), ...(rest.length ? ["", ...rest] : [])].join("\n");
+  return notesText.endsWith("\n") && !kept.endsWith("\n") ? `${kept}\n` : kept;
 }
 
 /** 「书/X.疑字清单.md」→「书/X.AI校注.md」 */

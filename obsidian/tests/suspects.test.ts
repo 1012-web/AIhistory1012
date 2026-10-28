@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAnchors, pageSegments } from "../src/core/anchors";
-import { appendNote, locateItem, markInList, nextOpen, NOTES_HEADING, notesPathFor, parseSuspectList, type SuspectItem } from "../src/core/suspects";
+import { appendNote, asNow, clearInList, locateItem, markInList, nextOpen, NOTES_HEADING, notesPathFor, parseSuspectList, removeNotes, type SuspectItem } from "../src/core/suspects";
 
 const enc = encodeURIComponent;
 
@@ -133,5 +133,57 @@ describe("写回", () => {
 
   it("校注文件名跟着清单", () => {
     expect(notesPathFor("书/某书.疑字清单.md")).toBe("书/某书.AI校注.md");
+  });
+});
+
+describe("重判与撤回", () => {
+  const parse = (text: string) => { const anchors = parseAnchors(text); return { anchors, segments: pageSegments(text, anchors) }; };
+
+  it("判过并改了字的，按正文现在的字定位", () => {
+    const decided = parseSuspectList(markInList(LIST, parseSuspectList(LIST)[0], "亳", "2026-10-28")!)[0];
+    const now = asNow(decided);
+    expect(now.link.text).toBe("亳");
+    expect(now.link.ctx).toBe("甲从亳迁乙");
+    const text = TEXT.replace("甲从毫迁乙", "甲从亳迁乙");
+    const hit = locateItem(text, parse(text), now)!;
+    expect(hit.exact).toBe(true);
+    expect(text.slice(hit.from, hit.to)).toBe("亳");
+  });
+
+  it("定作空（删了字）：按插入点找；维持原字、没判的原样返回", () => {
+    const deleted = parseSuspectList(markInList(LIST, parseSuspectList(LIST)[0], "", "2026-10-28")!)[0];
+    const now = asNow(deleted);
+    expect(now.link.text).toBe("");
+    const text = TEXT.replace("甲从毫迁乙", "甲从迁乙");
+    const hit = locateItem(text, parse(text), now)!;
+    expect(hit.from).toBe(hit.to);
+    expect(text.slice(hit.from - 2, hit.from + 2)).toBe("甲从迁乙");
+    const kept = parseSuspectList(markInList(LIST, parseSuspectList(LIST)[0], "毫", "2026-10-28")!)[0];
+    expect(asNow(kept)).toBe(kept);
+    const open = parseSuspectList(LIST)[0];
+    expect(asNow(open)).toBe(open);
+  });
+
+  it("撤回：去掉勾与判定、存疑记号", () => {
+    const decided = markInList(LIST, parseSuspectList(LIST)[0], "亳", "2026-10-28")!;
+    const cleared = clearInList(decided, parseSuspectList(decided)[0])!;
+    expect(cleared).toBe(LIST);
+    const doubted = markInList(LIST, parseSuspectList(LIST)[1], null, "2026-10-28")!;
+    expect(clearInList(doubted, parseSuspectList(doubted)[1])).toBe(LIST);
+  });
+
+  it("校注删行：还有别的行时只删这一条；删空了整节去掉、文件回到原样", () => {
+    const base = "# 校注\n\n## 别的\n\n正文。\n";
+    const one = appendNote(base, { id: "C001", page: 2, file: "01-正文.md", from: "毫", to: "亳" });
+    const two = appendNote(one, { id: "C002", page: 2, file: "01-正文.md", from: "", to: "又" });
+    const again = appendNote(two, { id: "C001", page: 2, file: "01-正文.md", from: "毫", to: "" });
+    const removed = removeNotes(again, "C001");
+    expect(removed).not.toContain("| C001 |");
+    expect(removed).toContain("| C002 |");
+    expect(removeNotes(removed, "C002")).toBe(base);
+    expect(removeNotes(base, "C001")).toBe(base);
+    // 别的节里同编号的行不动
+    const other = `${base}\n## 两家识别裁决后改动的字\n\n| 编号 | 位置 |\n|---|---|\n| C001 | x |\n`;
+    expect(removeNotes(appendNote(other, { id: "C001", page: 1, file: "f", from: "a", to: "b" }), "C001")).toBe(other);
   });
 });

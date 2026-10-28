@@ -55,7 +55,9 @@ export class SuspectView extends ItemView {
         onReveal={(key) => void desk.reveal(key)}
         onChoose={(key, text) => desk.decide(key, text)}
         onDoubt={(key) => desk.decide(key, null)}
+        onWithdraw={(key) => desk.withdraw(key)}
         onOpenList={() => void desk.openList()}
+        onOpenImage={(key) => void desk.openImage(key)}
       />
     );
   }

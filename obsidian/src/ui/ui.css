@@ -860,12 +860,20 @@ button.aps-button.aps-ob-skip {
 .aps-suspect-state.is-doubt {
   color: var(--text-warning, var(--aps-text-secondary));
 }
-.aps-suspect-image {
-  display: block;
-  max-width: 100%;
+.aps-suspect-strip {
+  overflow-x: auto;
+  overflow-y: hidden;
   border-radius: 6px;
   border: 1px solid var(--aps-border);
   background: #fff;
+}
+/* 选择器写重一级：要盖过 Obsidian 的 .workspace-leaf-content img:not([width]) { max-width: 100% } */
+.aps-suspect-strip.aps-suspect-strip img {
+  display: block;
+  height: 96px;
+  width: auto;
+  max-width: none;
+  cursor: zoom-in;
 }
 .aps-suspect-context {
   margin: 0;
@@ -991,4 +999,15 @@ button.aps-suspects-row.is-done {
   flex: none;
   font-size: 11px;
   color: var(--aps-text-muted);
+}.aps-suspects-focus {
+  display: none;
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+.aps-suspects:focus .aps-suspects-focus {
+  display: inline-block;
 }
