@@ -16,11 +16,12 @@ import { markdownTargetForPdf, pdfTargetForMarkdown } from "./core/line-sync";
 import { setCurrentPage } from "./editor-ext";
 import { PdfHighlighter, locateInSegment, selectionContext } from "./highlight";
 import { locateSuspect, type SuspectLink } from "./core/link";
+import { locateLink } from "./core/suspects";
 import { editorViewOf, markdownGeometry, markdownPointAt, modeOf, parsedOf, parsedText, scrollMarkdownTo, scrollerOf, setLegacyOffset } from "./markdown-pane";
 import { PdfSuggestModal } from "./modals";
 import { openBindDialog, openPagemarkDialog } from "./react-mount";
 import { applyPagemarks, planPagemarks } from "./core/pagemarks";
-import { Pairer, type Book } from "./pairing";
+import { findNote, Pairer, type Book } from "./pairing";
 import { delay, leafPdfFile, PdfPane } from "./pdf-view";
 import { buildRevisionRequest } from "./core/revision";
 import { applySyncMode, syncModeOf, type PdfSyncSettings, type PracticeId, type ToolbarState } from "./settings";
@@ -723,8 +724,11 @@ export class SyncController {
     return this.selectInMarkdown(page, query, selectionContext(range, layer));
   }
 
-  /** 在第 page 页的锚点段里找 query，选中并滚到基准线（必要时先打开所在文件） */
-  async selectInMarkdown(page: number, query: string, context: { before?: string; after?: string; progress?: number }, exact?: (segment: string) => [number, number] | null): Promise<boolean> {
+  /**
+   * 在第 page 页的锚点段里找 query，选中并滚到基准线（必要时先打开所在文件）。
+   * whole 给了就改由它在全文里定位（返回全文偏移），疑字链接用：这一页段里没有时还要找本页的脚注。
+   */
+  async selectInMarkdown(page: number, query: string, context: { before?: string; after?: string; progress?: number }, whole?: (text: string) => [number, number] | null): Promise<boolean> {
     const book = this.book;
     const leaf = this.markdownLeaf;
     if (!book || !leaf) return false;
@@ -742,15 +746,15 @@ export class SyncController {
     const parsed = parsedText(text);
     const segment = segmentForPage(parsed.segments, page);
     const base = segment?.from ?? 0;
-    const slice = segment ? text.slice(segment.from, segment.to) : text;
-    const found = exact ? exact(slice) : locateInSegment(slice, query, context);
+    const local = whole ? null : locateInSegment(segment ? text.slice(segment.from, segment.to) : text, query, context);
+    const found = whole ? whole(text) : local && ([base + local[0], base + local[1]] as [number, number]);
     if (!found) return false;
-    const from = base + found[0];
-    const to = base + found[1];
+    const [from, to] = found;
     this.suppressSelectionUntil = Date.now() + 400;
     this.quiet.markdown.hold(this.settings.quietMs * 2);
     if (modeOf(view) === "preview") {
-      const fraction = segment && segment.to > segment.from ? (from - segment.from) / (segment.to - segment.from) : 0;
+      // 落在注释区（不在本页段里）时比例会超出 0–1，夹住
+      const fraction = segment && segment.to > segment.from ? Math.min(1, Math.max(0, (from - segment.from) / (segment.to - segment.from))) : 0;
       scrollMarkdownTo(view, { page, fraction }, this.ratioFor("markdown"));
       return true;
     }
@@ -769,16 +773,18 @@ export class SyncController {
 
   // ---------- 疑字链接 ----------
 
-  async openSuspectLink(link: SuspectLink): Promise<boolean> {
-    const vault = this.app.vault;
-    const found = vault.getAbstractFileByPath(link.file) ?? vault.getAbstractFileByPath(`${link.file}.md`);
-    if (!(found instanceof TFile)) {
+  /** focus: false 时不抢焦点（判字面板里换条，按键要留在面板） */
+  async openSuspectLink(link: SuspectLink, options: { focus?: boolean } = {}): Promise<boolean> {
+    const found = findNote(this.app, link.file);
+    if (!found) {
       new Notice(`找不到笔记：${link.file}`);
       return false;
     }
     let leaf = this.markdownLeaf;
     if (!leaf || !this.leafAlive(leaf)) leaf = this.app.workspace.getLeaf(false);
-    await leaf.openFile(found, { active: true });
+    // 不抢焦点且已经开着这篇时不重开（重开会把焦点抢过去）
+    const alreadyOpen = leaf.view instanceof MarkdownView && leaf.view.file?.path === found.path;
+    if (options.focus !== false || !alreadyOpen) await leaf.openFile(found, { active: options.focus !== false });
     const book = await this.pairer.book(found);
     if (!book) {
       new Notice("这篇笔记没有配对的 PDF");
@@ -793,7 +799,10 @@ export class SyncController {
       page = at ? pageAtOffset(text, at[0], parsed.anchors, parsed.segments)?.page ?? 1 : 1;
     }
     const target = page;
-    const selected = await this.selectInMarkdown(target, link.text, {}, (segment) => locateSuspect(segment, link.text, link.ctx));
+    const selected = await this.selectInMarkdown(target, link.text, {}, (whole) => {
+      const hit = locateLink(whole, parsedText(whole), link);
+      return hit ? [hit.from, hit.to] : null;
+    });
     const pane = await this.ensurePdf();
     if (pane && link.text) {
       const inner = link.ctx.indexOf(link.text);

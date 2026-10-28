@@ -20,3 +20,4 @@ export { Preview, type DockChoice, type PreviewOptions } from "./Preview";
 export { AUTO_OPEN_LABEL, Onboarding, type OnboardingBook, type OnboardingProps, type OnboardingValues } from "./Onboarding";
 export { Coachmark, type CoachmarkProps, type CoachStep } from "./Coachmark";
 export { GettingStarted, SettingsHeader, type PracticeTask } from "./SettingsBlocks";
+export { SuspectPanel, type SuspectCard, type SuspectCardState, type SuspectPanelProps } from "./SuspectPanel";

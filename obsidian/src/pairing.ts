@@ -39,6 +39,18 @@ function parentPath(path: string): string {
   return at === -1 ? "" : path.slice(0, at);
 }
 
+/**
+ * 疑字链接里的 file：书在库里时是库内路径；书不在登记过的库里时是「书文件夹/文件名」，
+ * 按约定在当前库里找路径以它结尾的文件。
+ */
+export function findNote(app: App, path: string): TFile | null {
+  const vault = app.vault;
+  const direct = vault.getAbstractFileByPath(path) ?? vault.getAbstractFileByPath(`${path}.md`);
+  if (direct instanceof TFile) return direct;
+  const tail = `/${path}`;
+  return vault.getMarkdownFiles().find((file) => file.path.endsWith(tail)) ?? null;
+}
+
 /** 一组 PDF 里挑「唯一」的那份：只有一份就是它；原件与文字层副本成对时取副本 */
 export function uniquePdf(pdfs: TFile[]): TFile | null {
   return uniqueByPath(pdfs, (pdf) => pdf.path);

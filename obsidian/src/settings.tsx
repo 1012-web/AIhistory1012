@@ -56,6 +56,8 @@ export interface PdfSyncSettings {
   shadeStyle: ShadeStyle;
   pageLabels: boolean;
   wordHighlight: boolean;
+  /** 正文里给疑字清单上没判的字画波浪下划线，悬停弹出判字卡片（实时预览与源码模式） */
+  suspectMarks: boolean;
   /** 夜间模式：auto 跟随 Obsidian 的深色主题；on 总是开；off 总是关。开着时 PDF 页面反色、插件元素用深色 */
   nightMode: NightMode;
   nightTone: NightTone;
@@ -84,6 +86,7 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   shadeStyle: "tint",
   pageLabels: true,
   wordHighlight: true,
+  suspectMarks: true,
   nightMode: "auto",
   nightTone: "neutral",
   reducedMotion: false,
@@ -160,7 +163,8 @@ type ControlKey =
   | "shadeStyle"
   | "nightTone"
   | "reducedMotion"
-  | "wordHighlight";
+  | "wordHighlight"
+  | "suspectMarks";
 
 export class PdfSyncSettingTab extends PluginSettingTab {
   private rerenderHeader: (() => void) | null = null;
@@ -273,6 +277,11 @@ export class PdfSyncSettingTab extends PluginSettingTab {
             name: "当前页标示",
             desc: "正在读的那一页在正文里怎么标出来（实时预览与源码模式）：淡底色（默认）、左侧竖条，或不标示",
             control: { type: "dropdown", key: "shadeStyle", options: { tint: "淡底色", bar: "左侧竖条", off: "不标示" }, defaultValue: DEFAULT_SETTINGS.shadeStyle }
+          },
+          {
+            name: "正文里标出没判的疑字",
+            desc: "有疑字清单的书，清单上没判的字在正文里画波浪下划线，鼠标停上去弹出判字卡片；实时预览与源码模式。也可用命令「打开判字面板」逐条判。默认开",
+            control: { type: "toggle", key: "suspectMarks", defaultValue: DEFAULT_SETTINGS.suspectMarks }
           },
           {
             name: "减少动效",
