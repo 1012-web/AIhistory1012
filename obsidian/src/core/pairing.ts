@@ -45,3 +45,59 @@ export function uniquePdf<T>(pdfs: T[], pathOf: (pdf: T) => string): T | null {
   }
   return null;
 }
+
+/** 笔记 frontmatter 的 pdf 链接（linkpath，`[[]]` 里那段）是不是指着 path 这份 PDF：带文件夹的比路径结尾，只写文件名的比文件名，`.pdf` 可省 */
+export function linkPointsTo(linkpath: string, path: string): boolean {
+  const link = linkpath.replace(/\\/g, "/").replace(/^\.?\//, "").toLowerCase();
+  const target = path.toLowerCase();
+  const withExt = /\.pdf$/.test(link) ? link : `${link}.pdf`;
+  if (withExt.includes("/")) return target === withExt || target.endsWith(`/${withExt}`);
+  return target.slice(target.lastIndexOf("/") + 1) === withExt;
+}
+
+export interface PdfSighting {
+  path: string;
+  size: number;
+  /** 毫秒时间戳 */
+  at: number;
+}
+
+export interface PdfMove {
+  from: string;
+  to: string;
+}
+
+/**
+ * 在 Obsidian 外改名、移动 PDF，库里只看到「少了一份」「多了一份」，不是改名。
+ * 两件事相隔不到 windowMs、文件大小一样，就当是同一份挪了地方。先后顺序不论（跨盘移动可能先建后删）。
+ */
+export class PdfMoveDetector {
+  private readonly seen: Record<"deleted" | "created", PdfSighting[]> = { deleted: [], created: [] };
+
+  constructor(private readonly windowMs = 10_000) {}
+
+  deletedPdf(sighting: PdfSighting): PdfMove | null {
+    const other = this.take("created", sighting) ?? this.keep("deleted", sighting);
+    return other ? { from: sighting.path, to: other.path } : null;
+  }
+
+  createdPdf(sighting: PdfSighting): PdfMove | null {
+    const other = this.take("deleted", sighting) ?? this.keep("created", sighting);
+    return other ? { from: other.path, to: sighting.path } : null;
+  }
+
+  /** 从另一边取走一份对得上的；对不上返回 null */
+  private take(kind: "deleted" | "created", sighting: PdfSighting): PdfSighting | null {
+    const fresh = (item: PdfSighting) => Math.abs(sighting.at - item.at) <= this.windowMs;
+    this.seen.deleted = this.seen.deleted.filter(fresh);
+    this.seen.created = this.seen.created.filter(fresh);
+    const pool = this.seen[kind];
+    const at = pool.findIndex((other) => other.size === sighting.size && other.path !== sighting.path);
+    return at === -1 ? null : pool.splice(at, 1)[0];
+  }
+
+  private keep(kind: "deleted" | "created", sighting: PdfSighting): null {
+    this.seen[kind].push(sighting);
+    return null;
+  }
+}

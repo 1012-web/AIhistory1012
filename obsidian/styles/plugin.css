@@ -149,3 +149,7 @@
 .aps-suspect-tip .aps-suspect-note {
   color: var(--text-muted);
 }
+/* 配对失效的提示（Notice）里的按钮 */
+.notice .aps-notice-action {
+  margin-top: var(--size-4-2);
+}
