@@ -33,7 +33,7 @@
 
 ### Obsidian 插件
 
-正在提交 Obsidian 社区插件市场；上架前先手动安装：从 [Releases](https://github.com/1012-web/AIhistory1012/releases) 下载 `main.js`、`manifest.json`、`styles.css`，放进库里的 `.obsidian/plugins/aihistory-pdf-sync/`，在「设置 → 第三方插件」里启用。装了 book2md1012 的 AI 首次引导时也会代你做这一步。
+正在提交 Obsidian 社区插件市场；上架前先手动安装：从 [Releases](https://github.com/1012-web/pdf-sync-markdown/releases) 下载 `main.js`、`manifest.json`、`styles.css`，放进库里的 `.obsidian/plugins/aihistory-pdf-sync/`，在「设置 → 第三方插件」里启用。装了 book2md1012 的 AI 首次引导时也会代你做这一步。
 
 想新建一个专门读书的库：新建文件夹，把仓库里的 `vault-template/.obsidian/` 复制进去，再放好上面的插件目录，在 Obsidian 里「打开文件夹作为库」。
 
