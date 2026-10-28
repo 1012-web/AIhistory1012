@@ -13,6 +13,7 @@ import { fileForPage, printedLabel, suggestedPageRange } from "./core/book-index
 import { setCurrentPage } from "./editor-ext";
 import { PdfHighlighter, locateInSegment, selectionContext } from "./highlight";
 import { locateSuspect, type SuspectLink } from "./core/link";
+import { locateLink } from "./core/suspects";
 import { editorViewOf, markdownPointAt, modeOf, parsedText, scrollMarkdownTo, scrollerOf, setLegacyOffset } from "./markdown-pane";
 import { PdfSuggestModal } from "./modals";
 import { openBindDialog, openPagemarkDialog } from "./react-mount";
@@ -640,8 +641,11 @@ export class SyncController {
     return this.selectInMarkdown(page, query, selectionContext(range, layer));
   }
 
-  /** 在第 page 页的锚点段里找 query，选中并滚到基准线（必要时先打开所在文件） */
-  async selectInMarkdown(page: number, query: string, context: { before?: string; after?: string; progress?: number }, exact?: (segment: string) => [number, number] | null): Promise<boolean> {
+  /**
+   * 在第 page 页的锚点段里找 query，选中并滚到基准线（必要时先打开所在文件）。
+   * whole 给了就改由它在全文里定位（返回全文偏移），疑字链接用：这一页段里没有时还要找本页的脚注。
+   */
+  async selectInMarkdown(page: number, query: string, context: { before?: string; after?: string; progress?: number }, whole?: (text: string) => [number, number] | null): Promise<boolean> {
     const book = this.book;
     const leaf = this.markdownLeaf;
     if (!book || !leaf) return false;
@@ -659,15 +663,15 @@ export class SyncController {
     const parsed = parsedText(text);
     const segment = segmentForPage(parsed.segments, page);
     const base = segment?.from ?? 0;
-    const slice = segment ? text.slice(segment.from, segment.to) : text;
-    const found = exact ? exact(slice) : locateInSegment(slice, query, context);
+    const local = whole ? null : locateInSegment(segment ? text.slice(segment.from, segment.to) : text, query, context);
+    const found = whole ? whole(text) : local && ([base + local[0], base + local[1]] as [number, number]);
     if (!found) return false;
-    const from = base + found[0];
-    const to = base + found[1];
+    const [from, to] = found;
     this.suppressSelectionUntil = Date.now() + 400;
     this.quiet.markdown.hold(this.settings.quietMs * 2);
     if (modeOf(view) === "preview") {
-      const fraction = segment && segment.to > segment.from ? (from - segment.from) / (segment.to - segment.from) : 0;
+      // 落在注释区（不在本页段里）时比例会超出 0–1，夹住
+      const fraction = segment && segment.to > segment.from ? Math.min(1, Math.max(0, (from - segment.from) / (segment.to - segment.from))) : 0;
       scrollMarkdownTo(view, { page, fraction }, this.ratioFor("markdown"));
       return true;
     }
@@ -712,7 +716,10 @@ export class SyncController {
       page = at ? pageAtOffset(text, at[0], parsed.anchors, parsed.segments)?.page ?? 1 : 1;
     }
     const target = page;
-    const selected = await this.selectInMarkdown(target, link.text, {}, (segment) => locateSuspect(segment, link.text, link.ctx));
+    const selected = await this.selectInMarkdown(target, link.text, {}, (whole) => {
+      const hit = locateLink(whole, parsedText(whole), link);
+      return hit ? [hit.from, hit.to] : null;
+    });
     const pane = await this.ensurePdf();
     if (pane && link.text) {
       const inner = link.ctx.indexOf(link.text);

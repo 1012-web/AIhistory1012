@@ -30,6 +30,11 @@ const LIST_TEXT = [
   "",
   item("C902", 19, "埒", "幾與漢唐埒，地亦", "幾與漢唐【埒】，地亦", "垺"),
   item("C903", 19, "迥", "之祚，迥軼於宋", "之祚，【迥】軼於宋", "迴"),
+  "",
+  "## PDF 第 17 页",
+  "",
+  // 在脚注里：本页正文段里没有，要到挂在第 17 页的注释里找
+  item("C904", 17, "萬章", "《孟子·萬章上》引孔", "《孟子·【萬章】上》引孔", "万章"),
   ""
 ].join("\n");
 
@@ -68,9 +73,9 @@ describe("判字", function () {
       rows: document.querySelectorAll(".aps-suspects-row").length,
       focused: document.activeElement?.classList.contains("aps-suspects") ?? false
     }));
-    expect(shown.count).toBe("已判 0 / 共 3");
+    expect(shown.count).toBe("已判 0 / 共 4");
     expect(shown.readings).toEqual(["闢", "辟"]);
-    expect(shown.rows).toBe(3);
+    expect(shown.rows).toBe(4);
     expect(shown.focused).toBe(true);
     await browser.waitUntil(async () => browser.executeObsidian(() => document.querySelectorAll('.page[data-page-number="18"] .aps-hl').length > 0), { timeout: 5000, timeoutMsg: "PDF 第 18 页没有高亮" });
     await browser.saveScreenshot(`${SCREENSHOTS}/20-判字面板.png`);
@@ -87,7 +92,7 @@ describe("判字", function () {
     expect(notes).toContain("## 用户判定的疑字");
     expect(notes).toContain("| C901 | PDF 第 18 页（03-論正統.md） | 闢 | 辟 | 人工看图 |");
     await browser.waitUntil(async () => browser.executeObsidian(() => document.querySelector(".aps-suspect-card .aps-suspect-meta")?.textContent?.includes("C902") ?? false), { timeoutMsg: "没跳到下一条" });
-    expect(await browser.executeObsidian(() => document.querySelector(".aps-suspects-count")?.textContent)).toBe("已判 1 / 共 3");
+    expect(await browser.executeObsidian(() => document.querySelector(".aps-suspects-count")?.textContent)).toBe("已判 1 / 共 4");
   });
 
   it("正文标记：没判的字有波浪线；悬停卡片里点「存疑」记进清单", async () => {
@@ -133,5 +138,18 @@ describe("判字", function () {
     expect(await read(CHAPTER)).toBe(before);
     expect(await read(NOTES)).toContain("| C903 | PDF 第 19 页（03-論正統.md） | 迥 | （维持原字） | 人工看图 |");
     expect(await browser.executeObsidian(() => document.querySelector('.cm-content .aps-suspect[data-aps-suspect="C903"]'))).toBeNull();
+  });
+
+  it("脚注里的疑字：面板里点它，正文选中注释里那个字", async () => {
+    await browser.executeObsidian(() => {
+      [...document.querySelectorAll<HTMLButtonElement>(".aps-suspects-row")].find((row) => row.textContent?.includes("C904"))!.click();
+    });
+    await browser.waitUntil(async () => browser.executeObsidian(({ app }) => (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView?.editor.getSelection() === "萬章"), { timeoutMsg: "正文没选中脚注里的「萬章」" });
+    const around = await browser.executeObsidian(({ app }) => {
+      const editor = (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView.editor;
+      const from = editor.posToOffset(editor.getCursor("from"));
+      return (editor.getValue() as string).slice(from - 3, from + 3);
+    });
+    expect(around).toBe("孟子·萬章上");
   });
 });

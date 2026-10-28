@@ -193,6 +193,12 @@ export function locateItem(text: string, parsed: { segments: PageSegment[]; anch
   return segment ? locateIn(text, segment.from, text.slice(segment.from, segment.to), item) : null;
 }
 
+/** 只有链接（点清单里的 obsidian:// 链接时）：同 locateItem，现字为空时没有展示上下文可用 */
+export function locateLink(text: string, parsed: { segments: PageSegment[]; anchors: Anchor[] }, link: SuspectLink): Located | null {
+  const item: SuspectItem = { id: null, line: 0, raw: "", state: "open", link, kind: "", display: null, readings: [], note: "", image: null, chosen: null };
+  return locateItem(text, parsed, item);
+}
+
 // ---------- 写回 ----------
 
 export function today(date = new Date()): string {
