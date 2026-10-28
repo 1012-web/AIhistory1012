@@ -6,7 +6,7 @@
  * 手动翻 PDF 时 PDF 领跑，正文不再带动它（跟随暂停）；回到正文一有输入就恢复。
  */
 import { EditorView } from "@codemirror/view";
-import { FileSystemAdapter, MarkdownView, Notice, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { FileSystemAdapter, MarkdownView, Notice, TFile, getLanguage, type App, type WorkspaceLeaf } from "obsidian";
 import { BaselineLine } from "./baseline-line";
 import { pageAtOffset, segmentForPage, segmentForPageOrGap } from "./core/anchors";
 import { fileForPage, printedLabel, suggestedPageRange } from "./core/book-index";
@@ -23,8 +23,10 @@ import { buildRevisionRequest } from "./core/revision";
 import { applySyncMode, syncModeOf, type PdfSyncSettings, type PracticeId, type ToolbarState } from "./settings";
 import { LeaderTracker, QuietWindow, type PagePoint, type Side } from "./core/sync-math";
 import { ToolbarHost } from "./toolbar-host";
-import type { SyncMode, ToolbarStatus } from "./ui";
-import { headingBefore, headings, type Heading } from "./core/headings";
+import type { OutlineStatus, SyncMode, ToolbarStatus } from "./ui";
+import { headingIndexBefore, headings, type Heading } from "./core/headings";
+import { EMPTY_BOOK_STATE, headingPages, type HeadingPage } from "./core/outline-view";
+import { scrollOffsetToBaseline } from "./core/cm-sync";
 
 export interface ControllerHost {
   app: App;
@@ -49,8 +51,10 @@ export class SyncController {
   onPractice: ((id: PracticeId) => void) | null = null;
   currentPage = 1;
   private currentPrinted: string | null = null;
-  private currentChapter: string | null = null;
-  private headingCache: { text: string; list: Heading[] } | null = null;
+  /** 阅读线处的标题在 headingCache.list 里的序号，-1 = 还没到第一个标题 */
+  private currentHeading = -1;
+  /** 本文件的标题表；pages（各标题所在页）到要显示时才算 */
+  private headingCache: { text: string; list: Heading[]; pages: HeadingPage[] | null } | null = null;
   readonly toolbar: ToolbarHost;
   private markdownDisposers: Disposer[] = [];
   private pdfDisposers: Disposer[] = [];
@@ -75,6 +79,7 @@ export class SyncController {
       leafFor: (dock) => (dock === "pdf" ? this.pdf?.leaf ?? null : this.markdownLeaf),
       reducedMotion: () => host.settings.reducedMotion,
       jump: (page) => void this.jumpToPage(page),
+      jumpToHeading: (offset) => void this.jumpToHeading(offset),
       step: (delta) => void this.step(delta),
       zoom: (delta) => this.zoom(delta),
       setMode: (mode) => this.setMode(mode),
@@ -84,7 +89,21 @@ export class SyncController {
         this.refreshStatus();
       },
       swapSide: () => void this.swapSide(),
-      rebind: () => this.chooseAndBind()
+      rebind: () => this.chooseAndBind(),
+      setOutline: (prefs) => {
+        const settings = this.settings;
+        if (prefs.showLevel !== undefined) settings.outlineShowLevel = prefs.showLevel;
+        if (prefs.showPage !== undefined) settings.outlineShowPage = prefs.showPage;
+        if (prefs.pinned !== undefined) settings.outlinePinned = prefs.pinned;
+        void host.saveSettings();
+        this.refreshStatus();
+      },
+      setOutlineBook: (state) => {
+        if (!this.book) return;
+        this.settings.outlineBooks[this.book.pdf.path] = state;
+        void host.saveSettings();
+        this.refreshStatus();
+      }
     });
   }
 
@@ -454,16 +473,17 @@ export class SyncController {
     if (point) {
       this.currentPage = point.page;
       this.currentPrinted = point.printed;
-      this.currentChapter = this.chapterAt(view, point.offset);
+      this.currentHeading = this.headingAt(view, point.offset);
     }
     this.setShade(this.settings.shadeStyle !== "off" && point ? point.page : null);
     this.refreshStatus();
   }
 
-  private chapterAt(view: MarkdownView, offset: number): string | null {
+  /** offset 所在的标题（之前最近的一个）在本文件标题表里的序号；顺手刷新标题表 */
+  private headingAt(view: MarkdownView, offset: number): number {
     const text = modeOf(view) === "preview" ? view.data : view.editor.getValue();
-    if (this.headingCache?.text !== text) this.headingCache = { text, list: headings(text) };
-    return headingBefore(text, offset, this.headingCache.list)?.text ?? null;
+    if (this.headingCache?.text !== text) this.headingCache = { text, list: headings(text), pages: null };
+    return headingIndexBefore(this.headingCache.list, offset);
   }
 
   private setShade(page: number | null): void {
@@ -475,7 +495,7 @@ export class SyncController {
 
   // ---------- 跳页、翻页 ----------
 
-  async jumpToPage(page: number, fraction = 0): Promise<void> {
+  async jumpToPage(page: number, fraction = 0, atBaseline = fraction !== 0): Promise<void> {
     const book = this.book;
     if (!book) return;
     const pane = await this.ensurePdf();
@@ -483,8 +503,8 @@ export class SyncController {
     const target = Math.min(Math.max(1, page), count);
     const point = { page: target, fraction };
     // 跳到页首时贴顶（0.02），否则停在两边共用的基准线上
-    const pdfRatio = fraction === 0 ? 0.02 : this.ratioFor("pdf");
-    const markdownRatio = fraction === 0 ? 0.02 : this.ratioFor("markdown");
+    const pdfRatio = atBaseline ? this.ratioFor("pdf") : 0.02;
+    const markdownRatio = atBaseline ? this.ratioFor("markdown") : 0.02;
     this.quiet.pdf.hold(this.settings.quietMs * 2);
     this.quiet.markdown.hold(this.settings.quietMs * 2);
     pane?.scrollTo(point, pdfRatio);
@@ -520,7 +540,34 @@ export class SyncController {
     const parsed = parsedText(text);
     const found = segmentForPageOrGap(parsed.segments, page);
     this.currentPrinted = found && !found.gap ? found.segment.printed : null;
-    this.currentChapter = this.chapterAt(view, found ? (found.gap ? found.segment.to : found.segment.from) : 0);
+    this.currentHeading = this.headingAt(view, found ? (found.gap ? found.segment.to : found.segment.from) : 0);
+  }
+
+  /**
+   * 工具条标题菜单里点了某个标题：把它放到两边的阅读线上（PDF 按标题所在页、页内比例跟过去）。
+   * 放在阅读线而不贴顶，是因为工具条上的当前标题按阅读线算，贴顶时短小节会马上显示成下一节。
+   */
+  async jumpToHeading(offset: number): Promise<void> {
+    const view = this.markdownView;
+    if (!view || !this.book) return;
+    const parsed = parsedText(modeOf(view) === "preview" ? view.data : view.editor.getValue());
+    const at = pageAtOffset(parsed.text, offset, parsed.anchors, parsed.segments);
+    if (!at) return;
+    const fraction = at.to > at.from ? Math.min(1, Math.max(0, (offset - at.from) / (at.to - at.from))) : 0;
+    await this.jumpToPage(at.page, fraction, true);
+    // 编辑视图按页内比例只是估计（行高不均），再按偏移精确对一次
+    const latest = this.markdownView;
+    const cm = latest && modeOf(latest) !== "preview" ? editorViewOf(latest) : null;
+    if (cm) {
+      const ratio = this.ratioFor("markdown");
+      scrollOffsetToBaseline(cm, offset, ratio);
+      window.requestAnimationFrame(() => {
+        this.quiet.markdown.hold(this.settings.quietMs);
+        scrollOffsetToBaseline(cm, offset, ratio);
+      });
+    }
+    if (latest) this.currentHeading = this.headingAt(latest, offset);
+    this.refreshStatus();
   }
 
   async step(delta: number): Promise<void> {
@@ -547,7 +594,7 @@ export class SyncController {
       pageCount: this.pdf?.pageCount ?? 0,
       printed,
       scale: this.pdf?.scale ?? 1,
-      chapter: this.currentChapter,
+      outline: this.outlineStatus(),
       autoOpen: this.settings.autoOpen,
       mode: this.mode,
       pdfName: this.book.pdf.name,
@@ -556,6 +603,31 @@ export class SyncController {
     this.toolbar.update(status);
     this.host.statusBar.show();
     this.host.statusBar.setText(`PDF ${page}/${status.pageCount || "?"}${printed ? ` · p.${printed}` : ""}${this.paused ? " ⏸" : ""}`);
+  }
+
+  /** 工具条标题菜单要的东西：本文件标题、各自所在页、当前位置、显示偏好、这本书的展开记忆 */
+  private outlineStatus(): OutlineStatus {
+    const book = this.book;
+    const cache = this.headingCache;
+    if (cache && !cache.pages) {
+      const index = book?.index ?? null;
+      cache.pages = headingPages(cache.list, parsedText(cache.text).segments, (page, fromAnchor) => printedLabel(index, page, fromAnchor));
+    }
+    const settings = this.settings;
+    return {
+      headings: cache?.list ?? [],
+      pages: cache?.pages ?? [],
+      file: this.markdownView?.file?.path ?? "",
+      current: this.currentHeading,
+      zh: getLanguage().toLowerCase().startsWith("zh"),
+      style: settings.outlineStyle,
+      pageMode: settings.outlinePages,
+      showLevel: settings.outlineShowLevel,
+      showPage: settings.outlineShowPage,
+      pinButton: settings.outlinePinButton,
+      pinned: settings.outlinePinButton && settings.outlinePinned,
+      book: (book && settings.outlineBooks[book.pdf.path]) || EMPTY_BOOK_STATE
+    };
   }
 
   settingsChanged(): void {

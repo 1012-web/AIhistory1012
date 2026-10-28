@@ -140,15 +140,57 @@
   color: var(--aps-text-secondary);
 }
 
-/* ---- 章名 ---- */
-.aps-chapter {
-  max-width: 92px;
+/* ---- 多级标题（面包屑） ----
+ * 只占一行：停靠时卡片撑满停靠框，标题吃掉剩下的宽度；放不下时上级先缩（缩放权重 3），当前这一级最后缩。
+ * 折行判断按 6em 算，所以标题再长也不会把工具条挤成两行。悬浮时定宽，读着读着按钮不跟着左右跳。 */
+.aps-crumbs {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 6em;
+  min-width: 4em;
+  height: 24px;
+  overflow: hidden;
+}
+.aps-floating .aps-crumbs {
+  flex: 0 1 22em;
+}
+.aps-crumbs:empty {
+  display: none;
+}
+.aps-crumbs {
+  cursor: pointer;
+  outline: none;
+}
+.aps-crumb {
+  display: block;
+  flex: 0 3 auto;
+  min-width: 2.5em;
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 6px;
+  color: var(--aps-text-secondary);
+  line-height: 24px;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--aps-text-secondary);
+  white-space: nowrap;
 }
-.aps-chapter:empty {
-  display: none;
+.aps-crumb:last-child {
+  flex-shrink: 1;
+  min-width: 4em;
+  color: var(--aps-text-primary);
+}
+.aps-crumb.aps-crumb-placeholder {
+  color: var(--aps-text-muted);
+}
+.aps-crumb:hover,
+.aps-crumbs:focus-visible .aps-crumb:last-child,
+.aps-crumbs[data-popup-open] .aps-crumb:last-child {
+  background: var(--aps-surface-1);
+  color: var(--aps-text-primary);
+}
+.aps-crumb-sep {
+  flex: none;
+  color: var(--aps-text-muted);
 }
 
 /* ---- 分段开关 ---- */
@@ -279,6 +321,180 @@
   height: 1px;
   margin: 6px 0;
   background: var(--aps-border);
+}
+
+/* ---- 标题菜单（目录树 / 分栏） ---- */
+.aps-outline-pop {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  padding: 0;
+  overflow: hidden;
+}
+.aps-outline-columns {
+  width: auto;
+  min-width: min(420px, calc(100vw - 24px));
+  max-width: min(860px, calc(100vw - 24px));
+}
+.aps-ol {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.aps-ol-head,
+.aps-ol-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--aps-border);
+  white-space: nowrap;
+}
+.aps-ol-tools {
+  flex-wrap: wrap;
+  padding: 4px 6px;
+}
+.aps-menu input.aps-ol-search {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--aps-border-strong);
+  border-radius: 6px;
+  background: var(--aps-surface-1);
+  color: var(--aps-text-primary);
+  font: inherit;
+}
+.aps-ol-count {
+  flex: none;
+}
+.aps-menu .aps-ib.aps-ol-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+}
+.aps-menu .aps-ib.aps-ol-chip {
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.aps-menu .aps-ib[data-on] {
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+.aps-ol-list {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+  overflow-y: auto;
+  outline: none;
+}
+.aps-ol-empty {
+  padding: 8px;
+}
+.aps-ol-item,
+.aps-col-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding-right: 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+.aps-ol-item:hover,
+.aps-col-item:hover,
+.aps-ol-item:focus-visible,
+.aps-col-item:focus-visible {
+  background: var(--aps-surface-1);
+}
+.aps-ol-item:focus-visible,
+.aps-col-item:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--aps-border-accent);
+}
+.aps-ol-item[data-current],
+.aps-col-item[data-current] {
+  color: var(--aps-text-accent);
+  font-weight: 600;
+}
+.aps-ol-item[data-here],
+.aps-col-item[data-chosen] {
+  background: var(--aps-bg-accent);
+}
+.aps-ol-tw {
+  flex: none;
+  width: 14px;
+  color: var(--aps-text-muted);
+  font-size: 10px;
+  text-align: center;
+}
+.aps-ol-lv {
+  flex: none;
+  min-width: 18px;
+  color: var(--aps-text-muted);
+  font-family: var(--font-monospace);
+  font-size: 10px;
+  font-weight: 400;
+}
+.aps-ol-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aps-ol-hit {
+  border-radius: 2px;
+  background: var(--text-highlight-bg);
+  color: inherit;
+}
+.aps-ol-pg {
+  flex: none;
+  padding-left: 8px;
+  color: var(--aps-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.aps-cols {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+.aps-col {
+  flex: none;
+  width: 170px;
+  max-height: min(56vh, 460px);
+  padding: 4px;
+  overflow-y: auto;
+  border-right: 1px solid var(--aps-border);
+  box-sizing: border-box;
+}
+.aps-col-head {
+  padding: 2px 8px 4px;
+  color: var(--aps-text-muted);
+  font-family: var(--font-monospace);
+  font-size: 10px;
+}
+.aps-col-item {
+  padding-left: 8px;
+}
+.aps-col-go {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--aps-text-muted);
+}
+.aps-col-go:hover {
+  background: var(--aps-surface-2);
+  color: var(--aps-text-primary);
 }
 
 /* ---- 对话框 ---- */

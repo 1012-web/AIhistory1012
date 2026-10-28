@@ -7,7 +7,8 @@
 import type { WorkspaceLeaf } from "obsidian";
 import { createRoot, type Root } from "react-dom/client";
 import type { DockTarget, ToolbarState } from "./settings";
-import { DOCK_INSET, Toolbar, type DockFrame, type SyncMode, type ToolbarActions, type ToolbarStatus } from "./ui";
+import type { OutlineBookState } from "./core/outline-view";
+import { DOCK_INSET, Toolbar, type DockFrame, type OutlinePrefs, type SyncMode, type ToolbarActions, type ToolbarStatus } from "./ui";
 
 export interface ToolbarHostOptions {
   state(): ToolbarState;
@@ -15,12 +16,15 @@ export interface ToolbarHostOptions {
   leafFor(dock: DockTarget): WorkspaceLeaf | null;
   reducedMotion(): boolean;
   jump(page: number): void;
+  jumpToHeading(offset: number): void;
   step(delta: number): void;
   setMode(mode: SyncMode): void;
   setAutoOpen(value: boolean): void;
   swapSide(): void;
   zoom(delta: number | null): void;
   rebind(): void;
+  setOutline(prefs: OutlinePrefs): void;
+  setOutlineBook(state: OutlineBookState): void;
 }
 
 const SNAP_DISTANCE = 36;
@@ -48,12 +52,15 @@ export class ToolbarHost {
   constructor(private readonly options: ToolbarHostOptions) {
     this.actions = {
       jump: (page) => options.jump(page),
+      jumpToHeading: (offset) => options.jumpToHeading(offset),
       step: (delta) => options.step(delta),
       setMode: (mode) => options.setMode(mode),
       setAutoOpen: (value) => options.setAutoOpen(value),
       swapSide: () => options.swapSide(),
       zoom: (delta) => options.zoom(delta),
       rebind: () => options.rebind(),
+      setOutline: (prefs) => options.setOutline(prefs),
+      setOutlineBook: (state) => options.setOutlineBook(state),
       setCollapsed: (collapsed) => {
         options.saveState({ ...options.state(), collapsed });
         this.place();

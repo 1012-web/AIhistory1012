@@ -177,8 +177,8 @@ export function pageSegments(text: string, anchors: Anchor[] = parseAnchors(text
   return segments;
 }
 
-/** 二分：最后一个 from <= offset 的段的下标 */
-function segmentIndexAt(segments: PageSegment[], offset: number): number {
+/** 二分：最后一个 from <= offset 的段的下标；在第一个段之前返回 -1 */
+export function segmentIndexAt(segments: PageSegment[], offset: number): number {
   let low = 0;
   let high = segments.length - 1;
   let found = -1;

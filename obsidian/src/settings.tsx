@@ -6,7 +6,8 @@
 import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type AIhistoryPdfSync from "./main";
 import { mountReact } from "./react-mount";
-import { GettingStarted, SettingsHeader, type DockChoice, type PreviewOptions, type SyncMode } from "./ui";
+import type { OutlineBookState, OutlinePages } from "./core/outline-view";
+import { GettingStarted, SettingsHeader, type DockChoice, type OutlineStyle, type PreviewOptions, type SyncMode } from "./ui";
 
 export type ToolbarMode = "docked" | "floating";
 export type DockTarget = "markdown" | "pdf";
@@ -62,6 +63,20 @@ export interface PdfSyncSettings {
   /** 减少动效（另外自动尊重系统的「减少动态效果」） */
   reducedMotion: boolean;
   toolbar: ToolbarState;
+  /** 点工具条上的标题弹出的菜单：tree 目录树（默认）；columns 分栏 */
+  outlineStyle: OutlineStyle;
+  /** 菜单每行右边的页码：印刷页（默认）/ PDF 页 / 两个都标 */
+  outlinePages: OutlinePages;
+  /** 菜单里每行左边标 H1–H5 */
+  outlineShowLevel: boolean;
+  /** 菜单里每行右边标页码 */
+  outlineShowPage: boolean;
+  /** 菜单里显示「钉住」按钮（设置页可关） */
+  outlinePinButton: boolean;
+  /** 钉住：跳转后菜单不关，跟着阅读位置高亮 */
+  outlinePinned: boolean;
+  /** 各本书的目录展开记忆，键是书的 PDF 路径 */
+  outlineBooks: Record<string, OutlineBookState>;
   /** 首次引导弹过了 */
   onboarded: boolean;
   /** 「上手」里做到了的练习 */
@@ -86,6 +101,13 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   nightTone: "neutral",
   reducedMotion: false,
   toolbar: { mode: "docked", dock: "markdown", x: 120, y: 120, collapsed: false },
+  outlineStyle: "tree",
+  outlinePages: "printed",
+  outlineShowLevel: true,
+  outlineShowPage: true,
+  outlinePinButton: true,
+  outlinePinned: false,
+  outlineBooks: {},
   onboarded: false,
   practice: { highlight: false, pageEdit: false }
 };
@@ -100,6 +122,7 @@ export function mergeSettings(raw: unknown): PdfSyncSettings {
     ...rest,
     shadeStyle,
     toolbar: { ...DEFAULT_SETTINGS.toolbar, ...(data.toolbar ?? {}) },
+    outlineBooks: { ...(data.outlineBooks ?? {}) },
     practice: { ...DEFAULT_SETTINGS.practice, ...(data.practice ?? {}) }
   };
 }
@@ -156,7 +179,12 @@ type ControlKey =
   | "shadeStyle"
   | "nightTone"
   | "reducedMotion"
-  | "wordHighlight";
+  | "wordHighlight"
+  | "outlineStyle"
+  | "outlinePages"
+  | "outlineShowLevel"
+  | "outlineShowPage"
+  | "outlinePinButton";
 
 export class PdfSyncSettingTab extends PluginSettingTab {
   private rerenderHeader: (() => void) | null = null;
@@ -274,6 +302,37 @@ export class PdfSyncSettingTab extends PluginSettingTab {
             name: "减少动效",
             desc: "系统开了「减少动态效果」时自动打开",
             control: { type: "toggle", key: "reducedMotion", defaultValue: DEFAULT_SETTINGS.reducedMotion }
+          }
+        ]
+      },
+      {
+        type: "group",
+        heading: "标题菜单",
+        items: [
+          {
+            name: "标题菜单样式",
+            desc: "点工具条上的标题弹出的菜单。目录树：各级标题缩进成一棵树（默认）；分栏：当前位置的每一级并排一栏",
+            control: { type: "dropdown", key: "outlineStyle", options: { tree: "目录树", columns: "分栏" }, defaultValue: DEFAULT_SETTINGS.outlineStyle }
+          },
+          {
+            name: "标题菜单里的页码",
+            desc: "印刷页：书上印的页码（默认）；PDF 页：PDF 文件的第几页；两个都标。Obsidian 界面是中文时写「第50页」，其他语言写「p.50」",
+            control: { type: "dropdown", key: "outlinePages", options: { printed: "印刷页", pdf: "PDF 页", both: "两个都标" }, defaultValue: DEFAULT_SETTINGS.outlinePages }
+          },
+          {
+            name: "标题菜单里标出级别",
+            desc: "每行左边标 H1–H5。菜单里也能直接切换",
+            control: { type: "toggle", key: "outlineShowLevel", defaultValue: DEFAULT_SETTINGS.outlineShowLevel }
+          },
+          {
+            name: "标题菜单里标出页码",
+            desc: "每行右边标页码。菜单里也能直接切换",
+            control: { type: "toggle", key: "outlineShowPage", defaultValue: DEFAULT_SETTINGS.outlineShowPage }
+          },
+          {
+            name: "标题菜单里显示「钉住」按钮",
+            desc: "钉住后点了标题菜单不关，跟着阅读位置高亮当前标题。默认显示",
+            control: { type: "toggle", key: "outlinePinButton", defaultValue: DEFAULT_SETTINGS.outlinePinButton }
           }
         ]
       },

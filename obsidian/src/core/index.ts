@@ -33,7 +33,7 @@ export {
   type BookFileEntry,
   type BookIndex
 } from "./book-index";
-export { headingBefore, headings, type Heading } from "./headings";
+export { headingIndexBefore, headingPath, headings, outline, siblingsOf, type Heading, type Outline } from "./headings";
 export {
   LeaderTracker,
   QuietWindow,
