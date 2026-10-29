@@ -30,7 +30,13 @@ export default class AIhistoryPdfSync extends Plugin {
       openSettings: () => this.openSettings(),
       openLook: () => this.look.open(),
       openSuspects: () => void this.openSuspects(),
-      suspectsLeft: () => (this.suspects?.list ? this.suspects.items.filter((item) => item.state !== "done").length : null),
+      // 只数当前这本书的清单：换书的一瞬间判字面板还拿着上一本的
+      suspectsLeft: () => {
+        const list = this.suspects?.list;
+        const book = this.controller?.book;
+        if (!list || !book || (list.parent?.path ?? "/") !== (book.root || "/")) return null;
+        return this.suspects.items.filter((item) => item.state !== "done").length;
+      },
       statusBar
     });
     this.onboarding = new OnboardingHost(this);

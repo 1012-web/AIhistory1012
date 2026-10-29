@@ -86,6 +86,8 @@ export class SyncController {
   private markdownBoundView: View | null = null;
   /** 正文标签里换成了非笔记（比如点开了 PDF）时先放下，记着它，换回笔记时接回来 */
   private setAsideLeaf: WorkspaceLeaf | null = null;
+  /** 正在把 PDF 标签里冒出来的笔记放回正文标签（布局事件会连着来几次，只做一遍） */
+  private placing: WorkspaceLeaf | null = null;
   /** 当前 PDF 窗格的文件路径（标签关掉后 view 里的 file 可能已清空，先记下） */
   private pdfPath: string | null = null;
   /** 用户本次会话里关掉的那份 PDF：再进这本书的笔记不自动开，等用户点「打开 PDF」或选双向、单向 */
@@ -191,6 +193,11 @@ export class SyncController {
   async onActiveLeaf(leaf: WorkspaceLeaf | null): Promise<void> {
     if (!leaf) return;
     const generation = ++this.generation;
+    // PDF 标签里换成了笔记：不当它是新的正文标签（那样会再开一份 PDF、原来的正文标签晾着），交给 notePlacedInPdfTab
+    if (this.pdf && leaf === this.pdf.leaf && leaf.view !== this.pdfView && leaf.view instanceof MarkdownView) {
+      void this.notePlacedInPdfTab(leaf);
+      return;
+    }
     if (leaf.view instanceof MarkdownView && leaf.view.file) {
       const file = leaf.view.file;
       const book = await this.pairer.book(file);
@@ -407,6 +414,39 @@ export class SyncController {
   }
 
   /**
+   * PDF 标签里打开了笔记（在文件列表里点笔记时 PDF 正好是当前标签，Obsidian 就开在那里）。
+   * 是这本书的笔记：放回正文标签打开，PDF 标签换回原来那份 PDF，再按正文对齐一次；
+   * 别的笔记：照 Obsidian 的样子留在那里，这本书的 PDF 算关了。
+   */
+  private async notePlacedInPdfTab(leaf: WorkspaceLeaf): Promise<void> {
+    if (this.placing === leaf) return;
+    const file = leaf.view instanceof MarkdownView ? leaf.view.file : null;
+    const markdownLeaf = this.markdownLeaf;
+    const pdfPath = this.pdfPath;
+    const book = this.book;
+    if (!file || !book || !pdfPath || !markdownLeaf || markdownLeaf === leaf || !this.leafAlive(markdownLeaf)) {
+      this.onPdfClosed();
+      return;
+    }
+    this.placing = leaf;
+    try {
+      const owner = await this.pairer.book(file);
+      const pdf = this.app.vault.getAbstractFileByPath(pdfPath);
+      if (owner?.pdf.path !== book.pdf.path || !(pdf instanceof TFile)) {
+        this.onPdfClosed();
+        return;
+      }
+      await leaf.openFile(pdf, { active: false });
+      await markdownLeaf.openFile(file, { active: true });
+      await this.onActiveLeaf(markdownLeaf);
+      const pane = this.pdf;
+      if (pane && !this.paused && (await pane.waitReady())) this.syncFromMarkdown(true);
+    } finally {
+      this.placing = null;
+    }
+  }
+
+  /**
    * 窗格关了、布局变了：检查两边是否还在。
    * 标签还在、里面的视图却换了（在这个标签里打开过别的文件再回来）也要处理：
    * 监听挂在当初的视图上，不重挂的话两边就不再跟随。
@@ -420,6 +460,7 @@ export class SyncController {
       const leaf = this.pdf.leaf;
       // 还是本书的 PDF（换过视图又回来）就重挂；换成了别的文件等于这本书的 PDF 关了
       if (this.book && leafPdfFile(leaf)?.path === this.book.pdf.path) this.attachPdf(leaf);
+      else if (leaf.view instanceof MarkdownView && leaf.view.file) void this.notePlacedInPdfTab(leaf);
       else this.onPdfClosed();
     }
     // 本书的 PDF 又出现在某个标签里（在原标签里切回来、从文件列表打开，不一定成为当前标签）：接上
