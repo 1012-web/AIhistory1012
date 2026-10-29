@@ -29,12 +29,16 @@ export default class AIhistoryPdfSync extends Plugin {
       saveSettings: () => this.saveSettings(),
       openSettings: () => this.openSettings(),
       openLook: () => this.look.open(),
+      openSuspects: () => void this.openSuspects(),
+      suspectsLeft: () => (this.suspects?.list ? this.suspects.items.filter((item) => item.state !== "done").length : null),
       statusBar
     });
     this.onboarding = new OnboardingHost(this);
     this.look = new LookPanelHost(this);
     this.suspects = new SuspectDesk({ app: this.app, controller: this.controller, marksEnabled: () => this.settings.suspectMarks });
     this.suspects.onShowInPanel = () => void this.openSuspects();
+    // 判了一条、换了书：工具条上「判字 N」跟着变
+    this.suspects.subscribe(() => this.controller.statusChanged());
     this.controller.onBookAttached = () => {
       this.onboarding.onBookAttached();
       void this.suspects.follow();

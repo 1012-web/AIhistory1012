@@ -105,6 +105,21 @@
 .aps-toolbar button.aps-open-pdf:hover {
   color: var(--aps-text-accent);
 }
+/* 「判字 N」：没判的条数用小圆角数字标 */
+.aps-toolbar button.aps-open-suspects {
+  gap: 5px;
+}
+.aps-toolbar .aps-badge {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .aps-toolbar button.aps-collapse,
 .aps-toolbar button.aps-more {
   height: 24px;

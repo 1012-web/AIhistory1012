@@ -115,6 +115,13 @@ describe("判字", function () {
     await $('.cm-content .aps-suspect[data-aps-suspect="C902"]').moveTo();
     await $(".aps-suspect-tip").waitForDisplayed({ timeoutMsg: "悬停卡片没出来" });
     await browser.saveScreenshot(`${SCREENSHOTS}/21-判字悬停卡片.png`);
+    // 近看波浪线：记下疑字在窗口里的位置，截图后按这个框裁出来看
+    const box = await browser.executeObsidian(() => {
+      const rect = document.querySelector('.cm-content .aps-suspect[data-aps-suspect="C903"]')!.getBoundingClientRect();
+      return { x: rect.left, y: rect.top, w: rect.width, h: rect.height, dpr: window.devicePixelRatio };
+    });
+    await browser.saveScreenshot(`${SCREENSHOTS}/22-疑字波浪线.png`);
+    console.log(`WAVEBOX ${JSON.stringify(box)}`);
     const tip = await browser.executeObsidian(() => {
       const shell = document.querySelector(".aps-suspect-tip")?.closest<HTMLElement>(".cm-tooltip");
       const mark = document.querySelector<HTMLElement>('.cm-content .aps-suspect[data-aps-suspect="C902"]')!;
@@ -124,7 +131,7 @@ describe("判字", function () {
         // 外层浮层靠类名拿到卡片样式（不用 :has）；波浪线是背景渐变
         shellClass: shell?.classList.contains("aps-suspect-tooltip") ?? false,
         shellRadius: shell ? getComputedStyle(shell).borderTopLeftRadius : "",
-        wavy: getComputedStyle(mark).backgroundImage.includes("linear-gradient")
+        wavy: getComputedStyle(mark).backgroundImage.includes("radial-gradient")
       };
     });
     expect(tip.meta).toContain("C902");
@@ -140,15 +147,55 @@ describe("判字", function () {
     await browser.waitUntil(async () => browser.executeObsidian(() => document.querySelector('.cm-content .aps-suspect.is-doubt[data-aps-suspect="C902"]') !== null), { timeoutMsg: "存疑的标记没换样式" });
   });
 
+  it("工具条上「判字 N」：显示没判的条数，点了打开判字面板", async () => {
+    const info = await browser.executeObsidian(async ({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      app.workspace.detachLeavesOfType("aps-suspects");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const left = plugin.suspects.items.filter((item: any) => item.state !== "done").length;
+      const button = document.querySelector<HTMLElement>(".aps-toolbar .aps-open-suspects");
+      const badge = button?.querySelector(".aps-badge")?.textContent ?? "";
+      button?.click();
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return { left, badge, opened: app.workspace.getLeavesOfType("aps-suspects").length };
+    });
+    expect(info.left).toBeGreaterThan(0);
+    expect(info.badge).toBe(String(info.left));
+    expect(info.opened).toBe(1);
+  });
+
+  it("悬停卡片点进自填框后鼠标挪开、打字：卡片钉住不收；Esc 关掉", async () => {
+    const tipShown = () => browser.executeObsidian(() => document.querySelector(".aps-suspect-tip")?.isConnected ?? false);
+    await $('.cm-content .aps-suspect[data-aps-suspect="C902"]').moveTo();
+    await $(".aps-suspect-tip").waitForDisplayed({ timeoutMsg: "悬停卡片没出来" });
+    await $(".aps-suspect-tip input").click();
+    // 鼠标挪到别处（输入法候选窗盖住鼠标、手碰了触控板都会这样），以前卡片就收了
+    await $(".aps-toolbar .aps-page-input").moveTo();
+    await browser.pause(800);
+    expect(await tipShown()).toBe(true);
+    await browser.keys(["a", "b"]);
+    const typed = await browser.executeObsidian(() => ({
+      value: document.querySelector<HTMLInputElement>(".aps-suspect-tip input")?.value ?? null,
+      focused: document.activeElement === document.querySelector(".aps-suspect-tip input"),
+      shell: document.querySelector(".aps-suspect-tip")?.closest(".cm-tooltip")?.classList.contains("aps-suspect-tooltip") ?? false
+    }));
+    expect(typed).toEqual({ value: "ab", focused: true, shell: true });
+    await browser.keys("Escape");
+    await browser.waitUntil(async () => !(await tipShown()), { timeout: 2000, timeoutMsg: "Esc 没关掉钉住的卡片" });
+  });
+
   it("悬停卡片里自填：填的就是现字时正文不动，清单勾上，校注记「维持原字」", async () => {
     const editorText = () => browser.executeObsidian(({ app }) => (app as any).plugins.plugins["aihistory-pdf-sync"].controller.markdownView.editor.getValue() as string);
     const before = await editorText();
     await $('.cm-content .aps-suspect[data-aps-suspect="C903"]').moveTo();
     await $(".aps-suspect-tip").waitForDisplayed({ timeoutMsg: "悬停卡片没出来" });
-    await $(".aps-suspect-tip input").setValue("迥");
+    await $(".aps-suspect-tip input").click();
     await browser.executeObsidian(() => {
-      document.querySelector<HTMLFormElement>(".aps-suspect-tip form")!.requestSubmit();
+      const input = document.querySelector<HTMLInputElement>(".aps-suspect-tip input")!;
+      input.value = "迥";
     });
+    // 回车提交（钉住后的卡片里按回车照样定作）
+    await browser.keys("Enter");
     await browser.waitUntil(async () => line(await read(LIST), "C903").includes("判定作【迥】"), { timeoutMsg: "清单没记上判定" });
     // 本条没改字；第一条在编辑器里改的字随 Obsidian 自动保存落盘
     expect(await editorText()).toBe(before);

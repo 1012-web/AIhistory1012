@@ -5,7 +5,7 @@
  *
  *   ⋮⋮  [‹ 37 /919 p.112 ›]  第三章 › 第二节 › 一、……  [双向|单向|暂停]  [⇄ PDF 左]  ⋯  –
  *   底边 2px 全书进度线；收起后只剩「37 · p.112」，宽度弹簧渐变。
- *   PDF 关着时「⇄ PDF 左」换成强调色的「打开 PDF」。
+ *   PDF 关着时「⇄ PDF 左」换成强调色的「打开 PDF」；书有疑字清单时多一个「判字 N」开判字面板。
  *
  * 多级标题：阅读线处所在标题连同各级上级排成一行（面包屑），只占一行、不把工具条撑高；
  * 放不下时上级先缩成省略号，当前这一级留得最多。点任一级弹出标题菜单（目录树或分栏，见 Outline.tsx）。
@@ -39,6 +39,8 @@ export interface ToolbarStatus {
   mode: SyncMode;
   /** PDF 窗格开着没有；关着时「⇄ PDF 左右」换成「打开 PDF」 */
   pdfOpen: boolean;
+  /** 这本书疑字清单里还没判的条数；书没有清单时为 null，不显示判字按钮 */
+  suspects: number | null;
   pdfName: string;
   pdfSide: "left" | "right";
   /** 打开配对的笔记时自动在旁边开 PDF（默认开，记住上次的选择） */
@@ -67,6 +69,8 @@ export interface ToolbarActions extends OutlineActions {
   swapSide: () => void;
   /** 在正文旁边打开配对的 PDF（按设置放左或右） */
   openPdf: () => void;
+  /** 打开（或翻到）右侧栏的判字面板 */
+  openSuspects: () => void;
   /** delta 为 null 表示适合页宽 */
   zoom: (delta: number | null) => void;
   rebind: () => void;
@@ -289,6 +293,18 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
               <span>打开 PDF</span>
             </button>
           )}
+          {status.suspects !== null ? (
+            <button
+              type="button"
+              className="aps-grp aps-open-suspects aps-ib"
+              aria-label={status.suspects ? `打开判字面板（还有 ${status.suspects} 条没判）` : "打开判字面板（都判完了）"}
+              title={status.suspects ? `判字面板：还有 ${status.suspects} 条没判` : "判字面板：都判完了"}
+              onClick={() => actions.openSuspects()}
+            >
+              <span>判字</span>
+              {status.suspects ? <span className="aps-badge">{status.suspects}</span> : null}
+            </button>
+          ) : null}
           <OverflowMenu status={status} actions={actions} container={portalContainer} autoOpenLabel={autoOpenLabel} />
         </>
       )}

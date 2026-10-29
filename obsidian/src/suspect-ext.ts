@@ -4,7 +4,7 @@
  * 之后随编辑自动挪；用户直接改了那个字，标记就撤掉。
  */
 import { StateEffect, StateField, type Extension } from "@codemirror/state";
-import { closeHoverTooltips, Decoration, EditorView, hoverTooltip, WidgetType, type DecorationSet } from "@codemirror/view";
+import { closeHoverTooltips, Decoration, EditorView, hoverTooltip, showTooltip, WidgetType, type DecorationSet, type TooltipView } from "@codemirror/view";
 
 export interface SuspectMark {
   from: number;
@@ -67,6 +67,71 @@ const markField = StateField.define<MarkState>({
   provide: (field) => EditorView.decorations.from(field, (value) => value.decorations)
 });
 
+/**
+ * 钉住的卡片：悬停卡片随鼠标进出开关，点进自填框打字时，鼠标一挪或输入法候选窗盖住鼠标，
+ * 卡片就被当成「鼠标离开」收起，打到一半的字也没了。用户一在卡片里点输入框、拖原图条，
+ * 就把同一张卡片（同一个 DOM，字和焦点都留着）转成钉住的提示，只在按 Esc、点卡片外、定了字时关。
+ */
+interface PinnedCard {
+  from: number;
+  to: number;
+  key: string;
+  dom: HTMLElement;
+  /** 钉住时正在用（或正要点进）的输入框：挪进新浮层会丢焦点，挂好后放回去 */
+  input: HTMLInputElement | null;
+}
+
+const pinCard = StateEffect.define<PinnedCard | null>();
+
+const pinnedField = StateField.define<PinnedCard | null>({
+  create: () => null,
+  update(value, transaction) {
+    for (const effect of transaction.effects) if (effect.is(pinCard)) return effect.value;
+    if (value && transaction.docChanged) return { ...value, from: transaction.changes.mapPos(value.from), to: transaction.changes.mapPos(value.to) };
+    return value;
+  },
+  provide: (field) => showTooltip.from(field, (pinned) => (pinned ? {
+    pos: pinned.from,
+    end: pinned.to,
+    above: true,
+    create: (view) => pinnedView(view, pinned.dom, pinned.input)
+  } : null))
+});
+
+/** 外层浮层的边框、圆角由样式按这个类给（社区目录不收 :has 选择器） */
+function markShell(dom: HTMLElement): void {
+  dom.closest(".cm-tooltip")?.addClass("aps-suspect-tooltip");
+}
+
+function pinnedView(view: EditorView, dom: HTMLElement, input: HTMLInputElement | null): TooltipView {
+  const unpin = () => view.dispatch({ effects: pinCard.of(null) });
+  const onOutside = (event: PointerEvent) => {
+    if (!dom.contains(event.target as Node)) unpin();
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    unpin();
+    view.focus();
+  };
+  return {
+    dom,
+    mount: () => {
+      markShell(dom);
+      // 点输入框那一下的默认聚焦可能落在挪动之前：等这一轮事件过完再看一眼
+      if (input) window.setTimeout(() => {
+        if (input.isConnected && dom.ownerDocument.activeElement !== input) input.focus();
+      }, 0);
+      dom.ownerDocument.addEventListener("pointerdown", onOutside, true);
+      dom.addEventListener("keydown", onKey);
+    },
+    destroy: () => {
+      dom.ownerDocument.removeEventListener("pointerdown", onOutside, true);
+      dom.removeEventListener("keydown", onKey);
+    }
+  };
+}
+
 export interface SuspectExtensionOptions {
   enabled: () => boolean;
   /** 悬停卡片；close 关掉卡片 */
@@ -79,19 +144,30 @@ export function suspectExtensions(options: SuspectExtensionOptions): Extension[]
     const mark = view.state.field(markField).marks.find((candidate) => (candidate.from === candidate.to
       ? Math.abs(candidate.from - pos) <= 1
       : candidate.from <= pos && pos <= candidate.to));
-    if (!mark) return null;
+    // 这一条已经钉着一张卡片了，不再叠一张悬停的
+    if (!mark || view.state.field(pinnedField)?.key === mark.key) return null;
     return {
       pos: mark.from,
       end: mark.to,
       above: true,
       create: () => {
-        const dom = options.card(mark.key, () => view.dispatch({ effects: closeHoverTooltips })) ?? createDiv({ text: "这一条已不在清单里" });
-        // 外层浮层的边框、圆角由样式按这个类给（社区目录不收 :has 选择器）
-        return { dom, mount: () => dom.closest(".cm-tooltip")?.addClass("aps-suspect-tooltip") };
+        const close = () => view.dispatch({ effects: [closeHoverTooltips, pinCard.of(null)] });
+        const dom = options.card(mark.key, close) ?? createDiv({ text: "这一条已不在清单里" });
+        const pin = (event: Event) => {
+          const target = event.target as HTMLElement;
+          // 按钮点了就生效、卡片随之关，不用钉；点输入框、拖原图条要钉住
+          if (target.closest("button") || view.state.field(pinnedField)?.dom === dom) return;
+          if (event.type === "pointerdown" && !target.closest("input, .aps-suspect-strip")) return;
+          const input = target.closest("input");
+          view.dispatch({ effects: [pinCard.of({ from: mark.from, to: mark.to, key: mark.key, dom, input }), closeHoverTooltips] });
+        };
+        dom.addEventListener("pointerdown", pin);
+        dom.addEventListener("focusin", pin);
+        return { dom, mount: () => markShell(dom) };
       }
     };
   }, { hoverTime: 350 });
-  return [markField, tooltip];
+  return [markField, pinnedField, tooltip];
 }
 
 /** 送进一组标记（换书、清单改了、开了新文件时由宿主调用） */

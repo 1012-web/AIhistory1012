@@ -395,6 +395,36 @@ describe("双向联动", function () {
     expect(await scrollTops()).toEqual(first);
   });
 
+  it("PDF 标签里打开过别的文件再切回来、正文标签里点开过 PDF 再回来：两边照样跟随", async () => {
+    const swap = async (side: "pdf" | "markdown") => browser.executeObsidian(async ({ app }, which) => {
+      const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
+      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      // 照平常用法只留一个 PDF 标签（前面的用例多开了几个；多个时插件会改接另一个，那也对，但这里要看同一个标签）
+      for (const extra of app.workspace.getLeavesOfType("pdf")) if (extra !== controller.pdf.leaf) extra.detach();
+      await wait(300);
+      const leaf = which === "pdf" ? controller.pdf.leaf : controller.markdownLeaf;
+      const back = leaf.view.file;
+      // PDF 那侧换成一篇不属于这本书的笔记（换成书里的笔记会走「在 PDF 那组里开笔记」，另开 PDF，见上面的用例）
+      const other = which === "pdf"
+        ? app.vault.getAbstractFileByPath("书外笔记.md") ?? await app.vault.create("书外笔记.md", "不属于任何一本书。\n")
+        : controller.book.pdf;
+      // 同一个标签里换文件类型，Obsidian 会换一个新视图；以前插件还守着旧视图上的监听
+      await leaf.openFile(other, { active: false });
+      await wait(800);
+      await leaf.openFile(back, { active: which === "markdown" });
+      await wait(1500);
+      return { same: (which === "pdf" ? controller.pdf?.leaf : controller.markdownLeaf) === leaf, ready: !!controller.pdf?.ready, mode: controller.mode };
+    }, side);
+    for (const side of ["pdf", "markdown"] as const) {
+      // PDF 那侧换走时按「PDF 关了」转暂停，换回来自动恢复双向
+      expect(await swap(side)).toEqual({ same: true, ready: true, mode: "both" });
+      await userScrollMarkdown(side === "pdf" ? 0.3 : 0.7);
+      await settle(1000);
+      const now = await points();
+      expect(now.pdf?.page).toBe(now.markdown?.page);
+    }
+  });
+
   it("关掉双向：手动翻 PDF 时正文不动，PDF 也不被正文拽回；回到正文一滚就恢复跟随", async () => {
     await browser.executeObsidian(({ app }) => {
       (app as any).plugins.plugins["aihistory-pdf-sync"].settings.bidirectional = false;

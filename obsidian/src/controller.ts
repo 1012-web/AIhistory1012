@@ -7,7 +7,7 @@
  * 手动翻 PDF 时 PDF 领跑，正文不再带动它（跟随暂停）；回到正文一有输入就恢复。
  */
 import { EditorView } from "@codemirror/view";
-import { FileSystemAdapter, MarkdownView, Notice, TFile, getLanguage, type App, type WorkspaceLeaf } from "obsidian";
+import { FileSystemAdapter, MarkdownView, Notice, TFile, getLanguage, type App, type View, type WorkspaceLeaf } from "obsidian";
 import { BaselineLine } from "./baseline-line";
 import { pageAtOffset, segmentForPage, segmentForPageOrGap } from "./core/anchors";
 import { fileForPage, printedLabel, suggestedPageRange } from "./core/book-index";
@@ -40,6 +40,9 @@ export interface ControllerHost {
   /** 打开本插件的设置页 */
   openSettings(): void;
   openLook(): void;
+  /** 打开判字面板；这本书疑字清单里还没判的条数（没有清单时 null） */
+  openSuspects(): void;
+  suspectsLeft(): number | null;
   statusBar: HTMLElement;
 }
 
@@ -78,6 +81,11 @@ export class SyncController {
   private selectionTimer: number | null = null;
   private suppressSelectionUntil = 0;
   private opening: Promise<PdfPane | null> | null = null;
+  /** 两边监听挂在哪个视图上；标签里换了视图（打开过别的文件）要重挂 */
+  private pdfView: View | null = null;
+  private markdownBoundView: View | null = null;
+  /** 正文标签里换成了非笔记（比如点开了 PDF）时先放下，记着它，换回笔记时接回来 */
+  private setAsideLeaf: WorkspaceLeaf | null = null;
   /** 当前 PDF 窗格的文件路径（标签关掉后 view 里的 file 可能已清空，先记下） */
   private pdfPath: string | null = null;
   /** 用户本次会话里关掉的那份 PDF：再进这本书的笔记不自动开，等用户点「打开 PDF」或选双向、单向 */
@@ -117,6 +125,7 @@ export class SyncController {
       },
       swapSide: () => void this.swapSide(),
       openPdf: () => void this.ensurePdf(),
+      openSuspects: () => host.openSuspects(),
       rebind: () => this.chooseAndBind(),
       openSettings: () => host.openSettings(),
       openLook: () => host.openLook(),
@@ -197,7 +206,7 @@ export class SyncController {
       return;
     }
     const pdfFile = leafPdfFile(leaf);
-    if (pdfFile && this.book && pdfFile.path === this.book.pdf.path && leaf !== this.pdf?.leaf) this.attachPdf(leaf);
+    if (pdfFile && this.book && pdfFile.path === this.book.pdf.path && (leaf !== this.pdf?.leaf || leaf.view !== this.pdfView)) this.attachPdf(leaf);
   }
 
   private async attachMarkdown(leaf: WorkspaceLeaf, book: Book): Promise<void> {
@@ -205,7 +214,9 @@ export class SyncController {
     this.book = book;
     setLegacyOffset(book.index.printedPageOffset);
     this.markdownLeaf = leaf;
-    if (!sameLeaf || !this.markdownDisposers.length) this.bindMarkdown();
+    this.setAsideLeaf = null;
+    // 同一个标签换过视图（中间打开过 PDF 等别的类型）也要重挂：旧视图上的监听收不到滚动了
+    if (!sameLeaf || leaf.view !== this.markdownBoundView || !this.markdownDisposers.length) this.bindMarkdown();
     const sameBook = this.app.workspace.getLeavesOfType("pdf").filter((candidate) => leafPdfFile(candidate)?.path === book.pdf.path);
     // 与正文同一组标签的 PDF 会被正文挡住，不能用（但也不关它：那是用户的标签）
     const usable = sameBook.filter((candidate) => candidate.parent !== leaf.parent);
@@ -216,7 +227,7 @@ export class SyncController {
       await this.app.workspace.revealLeaf(existing);
       this.app.workspace.setActiveLeaf(leaf, { focus: false });
     }
-    if (existing && existing !== this.pdf?.leaf) this.attachPdf(existing);
+    if (existing && (existing !== this.pdf?.leaf || existing.view !== this.pdfView)) this.attachPdf(existing);
     // 关掉 PDF 标签后焦点落回正文，这里可能先于 layout-change 发现
     if (!existing && this.pdf) {
       if (this.leafAlive(this.pdf.leaf)) this.detachPdf();
@@ -234,6 +245,7 @@ export class SyncController {
     this.disposeMarkdown();
     const view = this.markdownView;
     if (!view) return;
+    this.markdownBoundView = view;
     const root = view.contentEl;
     const onScroll = () => {
       if (this.markdownFrame !== null) return;
@@ -296,6 +308,7 @@ export class SyncController {
     this.disposePdf();
     const pane = new PdfPane(leaf);
     this.pdf = pane;
+    this.pdfView = leaf.view;
     this.lines.reset(pane.file?.path ?? null);
     const root = leaf.view.containerEl;
     const onScroll = () => {
@@ -348,6 +361,7 @@ export class SyncController {
 
   private disposeMarkdown(): void {
     for (const dispose of this.markdownDisposers.splice(0)) dispose();
+    this.markdownBoundView = null;
     this.markdownLine?.hide();
     this.markdownLine = null;
   }
@@ -371,6 +385,7 @@ export class SyncController {
     this.disposePdf();
     this.highlighter.clear();
     this.pdf = null;
+    this.pdfView = null;
     this.pdfPath = null;
   }
 
@@ -391,15 +406,48 @@ export class SyncController {
     this.refreshStatus();
   }
 
-  /** 窗格关了、布局变了：检查两边是否还在 */
+  /**
+   * 窗格关了、布局变了：检查两边是否还在。
+   * 标签还在、里面的视图却换了（在这个标签里打开过别的文件再回来）也要处理：
+   * 监听挂在当初的视图上，不重挂的话两边就不再跟随。
+   */
   onLayoutChange(): void {
     if (this.pdf && !this.leafAlive(this.pdf.leaf)) {
       // 正文也一起没了（关整组、关窗口）不算用户关 PDF
       if (this.markdownLeaf && this.leafAlive(this.markdownLeaf)) this.onPdfClosed();
       else this.detachPdf();
+    } else if (this.pdf && this.pdf.leaf.view !== this.pdfView) {
+      const leaf = this.pdf.leaf;
+      // 还是本书的 PDF（换过视图又回来）就重挂；换成了别的文件等于这本书的 PDF 关了
+      if (this.book && leafPdfFile(leaf)?.path === this.book.pdf.path) this.attachPdf(leaf);
+      else this.onPdfClosed();
+    }
+    // 本书的 PDF 又出现在某个标签里（在原标签里切回来、从文件列表打开，不一定成为当前标签）：接上
+    if (!this.pdf && this.book && this.markdownLeaf) {
+      const book = this.book;
+      const markdownParent = this.markdownLeaf.parent;
+      const candidates = this.app.workspace.getLeavesOfType("pdf").filter((candidate) => leafPdfFile(candidate)?.path === book.pdf.path && candidate.parent !== markdownParent);
+      const back = candidates.find((candidate) => candidate.view.containerEl.isShown()) ?? candidates[0];
+      if (back) this.attachPdf(back);
     }
     if (this.markdownLeaf && !this.leafAlive(this.markdownLeaf)) this.detachMarkdown();
-    else if (this.markdownLeaf && this.book) this.toolbar.place();
+    else if (this.markdownLeaf && this.markdownLeaf.view !== this.markdownBoundView) {
+      // 正文标签里换成了别的视图：还是笔记就按新视图重新认书、重挂，不是笔记就先放下、记着这个标签
+      if (this.markdownLeaf.view instanceof MarkdownView) void this.onActiveLeaf(this.markdownLeaf);
+      else {
+        this.setAsideLeaf = this.markdownLeaf;
+        this.detachMarkdown();
+      }
+    } else if (this.markdownLeaf && this.book) this.toolbar.place();
+    else if (!this.markdownLeaf && this.setAsideLeaf) {
+      // 放下的那个标签又换回笔记（它本来就是当前标签，不会再来「当前标签变了」的通知）：接回来
+      const leaf = this.setAsideLeaf;
+      if (!this.leafAlive(leaf)) this.setAsideLeaf = null;
+      else if (leaf.view instanceof MarkdownView) {
+        this.setAsideLeaf = null;
+        void this.onActiveLeaf(leaf);
+      }
+    }
     // 切换阅读 / 编辑视图、拖动分栏都会触发：滚动容器可能换了，线要重量
     this.refreshBaselines();
   }
@@ -631,10 +679,19 @@ export class SyncController {
 
   // ---------- 跳页、翻页 ----------
 
+  /**
+   * 翻页、跳标题、选字高亮、点疑字链接这类顺手的动作要用的 PDF：
+   * 用户这次关掉了本书的 PDF 就不替他开（只动正文），等他点「打开 PDF」或选双向、单向。
+   */
+  private async followingPdf(): Promise<PdfPane | null> {
+    if (!this.pdf && this.book && this.closedPdf === this.book.pdf.path) return null;
+    return this.ensurePdf();
+  }
+
   async jumpToPage(page: number, fraction = 0, atBaseline = fraction !== 0): Promise<void> {
     const book = this.book;
     if (!book) return;
-    const pane = await this.ensurePdf();
+    const pane = await this.followingPdf();
     const count = pane?.pageCount || Number.MAX_SAFE_INTEGER;
     const target = Math.min(Math.max(1, page), count);
     const point = { page: target, fraction };
@@ -740,6 +797,7 @@ export class SyncController {
       autoOpen: this.settings.autoOpen,
       mode: this.mode,
       pdfOpen: !!this.pdf,
+      suspects: this.host.suspectsLeft(),
       pdfName: this.book.pdf.name,
       pdfSide: this.settings.pdfSide
     };
@@ -771,6 +829,11 @@ export class SyncController {
       pinned: settings.outlinePinButton && settings.outlinePinned,
       book: (book && settings.outlineBooks[book.pdf.path]) || EMPTY_BOOK_STATE
     };
+  }
+
+  /** 工具条上显示的东西在别处变了（疑字清单判了一条等） */
+  statusChanged(): void {
+    this.refreshStatus();
   }
 
   settingsChanged(): void {
@@ -826,7 +889,7 @@ export class SyncController {
     const parsed = parsedText(text);
     const at = pageAtOffset(text, from, parsed.anchors, parsed.segments);
     if (!at) return false;
-    const pane = await this.ensurePdf();
+    const pane = await this.followingPdf();
     if (!pane) return false;
     const progress = at.to > at.from ? (from - at.from) / (at.to - at.from) : 0;
     const shown = await this.highlighter.show(pane, {
@@ -934,7 +997,7 @@ export class SyncController {
       const hit = locateLink(whole, parsedText(whole), link);
       return hit ? [hit.from, hit.to] : null;
     });
-    const pane = await this.ensurePdf();
+    const pane = await this.followingPdf();
     if (pane && link.text) {
       const inner = link.ctx.indexOf(link.text);
       const context = inner === -1 ? { before: link.ctx, after: link.ctx } : { before: link.ctx.slice(0, inner), after: link.ctx.slice(inner + link.text.length) };
