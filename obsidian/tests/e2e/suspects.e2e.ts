@@ -115,12 +115,23 @@ describe("判字", function () {
     await $('.cm-content .aps-suspect[data-aps-suspect="C902"]').moveTo();
     await $(".aps-suspect-tip").waitForDisplayed({ timeoutMsg: "悬停卡片没出来" });
     await browser.saveScreenshot(`${SCREENSHOTS}/21-判字悬停卡片.png`);
-    const tip = await browser.executeObsidian(() => ({
-      meta: document.querySelector(".aps-suspect-tip .aps-suspect-meta")?.textContent ?? "",
-      readings: [...document.querySelectorAll(".aps-suspect-tip .aps-suspect-glyph")].map((node) => node.textContent)
-    }));
+    const tip = await browser.executeObsidian(() => {
+      const shell = document.querySelector(".aps-suspect-tip")?.closest<HTMLElement>(".cm-tooltip");
+      const mark = document.querySelector<HTMLElement>('.cm-content .aps-suspect[data-aps-suspect="C902"]')!;
+      return {
+        meta: document.querySelector(".aps-suspect-tip .aps-suspect-meta")?.textContent ?? "",
+        readings: [...document.querySelectorAll(".aps-suspect-tip .aps-suspect-glyph")].map((node) => node.textContent),
+        // 外层浮层靠类名拿到卡片样式（不用 :has）；波浪线是背景渐变
+        shellClass: shell?.classList.contains("aps-suspect-tooltip") ?? false,
+        shellRadius: shell ? getComputedStyle(shell).borderTopLeftRadius : "",
+        wavy: getComputedStyle(mark).backgroundImage.includes("linear-gradient")
+      };
+    });
     expect(tip.meta).toContain("C902");
     expect(tip.readings).toEqual(["埒", "垺"]);
+    expect(tip.shellClass).toBe(true);
+    expect(tip.shellRadius).toBe("10px");
+    expect(tip.wavy).toBe(true);
     await browser.executeObsidian(() => {
       [...document.querySelectorAll<HTMLButtonElement>(".aps-suspect-tip button")].find((button) => button.textContent === "存疑")!.click();
     });

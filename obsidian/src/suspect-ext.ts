@@ -86,7 +86,8 @@ export function suspectExtensions(options: SuspectExtensionOptions): Extension[]
       above: true,
       create: () => {
         const dom = options.card(mark.key, () => view.dispatch({ effects: closeHoverTooltips })) ?? createDiv({ text: "这一条已不在清单里" });
-        return { dom };
+        // 外层浮层的边框、圆角由样式按这个类给（社区目录不收 :has 选择器）
+        return { dom, mount: () => dom.closest(".cm-tooltip")?.addClass("aps-suspect-tooltip") };
       }
     };
   }, { hoverTime: 350 });

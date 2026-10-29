@@ -111,6 +111,10 @@ On by default and switchable off in the guide or settings: page anchors shown as
 
 The plugin makes no network requests, collects no data and only reads and writes files inside your vault. It writes only what you explicitly confirm: resolved characters, added page anchors, and the `pdf` frontmatter field when pairing, each shown to you first. OCR and any PDF upload happen only on the skill side.
 
+插件会列出库里的文件路径，只用于三件事：配对时列出库里的 PDF 供你挑选；配对时找同名 PDF、PDF 改名或移动后找出还指着旧路径的笔记；首次引导时找出库里已有的书（有 `book.json` 的书文件夹、frontmatter 写了 `pdf` 的笔记），决定什么时候弹引导、列给你选。读取文件内容只限书文件夹里的笔记、疑字清单与校注，以及 `book.json`。剪贴板只写不读：点「复制本页修订请求」时把请求文字写进剪贴板，供你粘贴给 AI。
+
+The plugin lists file paths in your vault for three things only: offering the vault's PDFs when you pair a note; finding a same-name PDF, or notes still pointing to a PDF's old path after it was renamed or moved; and, for the first-run guide, finding books already in the vault (book folders with a `book.json`, notes with a `pdf` frontmatter field) to decide when to show the guide and list them for you. It reads file contents only from a book folder's notes, suspect list, annotation file and `book.json`. It only writes to the clipboard, never reads it: "Copy revision request for this page" puts the request text there for you to paste to an AI.
+
 ## 开发 / Development
 
 ```bash

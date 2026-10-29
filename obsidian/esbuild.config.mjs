@@ -19,6 +19,23 @@ const assetsPlugin = {
   }
 };
 
+// 社区目录的审核把「运行时建 <script> 元素」判为错误。插件里只有 react-dom 有这几处
+// （预加载脚本、渲染 <script> 资源，插件从不用），打包时换成直接报错，产物里不留建 <script> 的代码。
+const NO_SCRIPT = "(() => { throw new Error(\"PDF Sync Markdown: script elements are not supported\"); })()";
+const noScriptPlugin = {
+  name: "aihistory-no-script",
+  setup(build) {
+    build.onLoad({ filter: /[\\/]react-dom[\\/]cjs[\\/]react-dom-client\.(production|development)\.js$/ }, (args) => {
+      const source = readFileSync(args.path, "utf8");
+      const patched = source
+        .replace(/[\w$]+\.createElement\("script"\)/g, NO_SCRIPT)
+        .replace(/[\w$]+\.innerHTML = "<script>\\x3c\/script>";/g, NO_SCRIPT + ";");
+      if (/createElement\("script"\)|<script>/.test(patched)) throw new Error("react-dom 里还有建 <script> 的代码，改 noScriptPlugin 的替换规则");
+      return { contents: patched, loader: "js" };
+    });
+  }
+};
+
 const context = await esbuild.context({
   entryPoints: ["src/main.ts"],
   bundle: true,
@@ -35,7 +52,7 @@ const context = await esbuild.context({
   charset: "utf8",
   treeShaking: true,
   outfile: "dist/main.js",
-  plugins: [assetsPlugin]
+  plugins: [noScriptPlugin, assetsPlugin]
 });
 
 if (production) {

@@ -108,14 +108,22 @@
 }
 
 /* ==== 判字：正文里没判的疑字（波浪下划线）、漏字处的 ∅ 记号、悬停卡片 ==== */
+/* 波浪线用背景渐变画在字下方（社区目录的样式检查对文字装饰线的波浪、虚线写法报兼容警告）；
+   行内元素的 padding-bottom 不撑行高，只把背景往下延，线就落在字下面 */
 .markdown-source-view.mod-cm6 .aps-suspect {
-  text-decoration: underline wavy color-mix(in srgb, var(--color-orange) 80%, transparent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  --aps-suspect-line: color-mix(in srgb, var(--color-orange) 80%, transparent);
+  padding-bottom: 3px;
+  background-image:
+    linear-gradient(135deg, transparent 35%, var(--aps-suspect-line) 35% 60%, transparent 60%),
+    linear-gradient(45deg, transparent 35%, var(--aps-suspect-line) 35% 60%, transparent 60%);
+  background-size: 6px 3px;
+  background-position: 0 100%;
+  background-repeat: repeat-x;
   cursor: help;
 }
 .markdown-source-view.mod-cm6 .aps-suspect.is-doubt {
-  text-decoration-style: dotted;
+  background-image: radial-gradient(circle, var(--aps-suspect-line) 45%, transparent 55%);
+  background-size: 4px 2px;
 }
 .markdown-source-view.mod-cm6 .aps-suspect-gap {
   display: inline-block;
@@ -129,7 +137,8 @@
   background: color-mix(in srgb, var(--color-orange) 12%, transparent);
   cursor: help;
 }
-.cm-tooltip.cm-tooltip-hover:has(.aps-suspect-tip) {
+/* 判字卡片外面那层 CodeMirror 浮层：卡片挂上时给它加类（不用 :has，见 suspect-ext.ts） */
+.cm-tooltip.cm-tooltip-hover.aps-suspect-tooltip {
   padding: 0;
   border: 1px solid var(--background-modifier-border);
   border-radius: 10px;
