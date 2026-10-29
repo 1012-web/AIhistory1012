@@ -66,6 +66,8 @@ export interface ToolbarActions extends OutlineActions {
   rebind: () => void;
   /** 打开插件设置页 */
   openSettings: () => void;
+  /** 打开外观与布局面板 */
+  openLook: () => void;
   setCollapsed: (collapsed: boolean) => void;
   /** 开始拖：宿主显示各窗格顶部的虚线停靠区 */
   dragStart: () => void;
@@ -358,6 +360,9 @@ function OverflowMenu({ status, actions, container, autoOpenLabel }: { status: T
               <span className="aps-muted">（点击改绑）</span>
             </Menu.Item>
             <Menu.Separator className="aps-menu-separator" />
+            <Menu.Item className="aps-menu-item aps-open-look" onClick={() => actions.openLook()}>
+              外观与布局…
+            </Menu.Item>
             <Menu.Item className="aps-menu-item aps-open-settings" onClick={() => actions.openSettings()}>
               插件设置…
             </Menu.Item>

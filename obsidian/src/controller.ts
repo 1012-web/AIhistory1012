@@ -39,6 +39,7 @@ export interface ControllerHost {
   saveSettings(): Promise<void>;
   /** 打开本插件的设置页 */
   openSettings(): void;
+  openLook(): void;
   statusBar: HTMLElement;
 }
 
@@ -113,6 +114,7 @@ export class SyncController {
       swapSide: () => void this.swapSide(),
       rebind: () => this.chooseAndBind(),
       openSettings: () => host.openSettings(),
+      openLook: () => host.openLook(),
       setOutline: (prefs) => {
         const settings = this.settings;
         if (prefs.showLevel !== undefined) settings.outlineShowLevel = prefs.showLevel;

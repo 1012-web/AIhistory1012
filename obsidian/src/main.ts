@@ -3,6 +3,7 @@ import { SyncController } from "./controller";
 import { editorExtensions, refreshLabels } from "./editor-ext";
 import { parseSuspectLink, PROTOCOL_ACTION } from "./core/link";
 import { editorViewOf } from "./markdown-pane";
+import { LookPanelHost } from "./look-host";
 import { OnboardingHost } from "./onboarding-host";
 import { mergeSettings, nightActive, PdfSyncSettingTab, type PdfSyncSettings } from "./settings";
 import { SuspectDesk } from "./suspect-desk";
@@ -13,6 +14,7 @@ export default class AIhistoryPdfSync extends Plugin {
   declare settings: PdfSyncSettings;
   controller!: SyncController;
   onboarding!: OnboardingHost;
+  look!: LookPanelHost;
   suspects!: SuspectDesk;
   private settingTab: PdfSyncSettingTab | null = null;
 
@@ -26,9 +28,11 @@ export default class AIhistoryPdfSync extends Plugin {
       settings: this.settings,
       saveSettings: () => this.saveSettings(),
       openSettings: () => this.openSettings(),
+      openLook: () => this.look.open(),
       statusBar
     });
     this.onboarding = new OnboardingHost(this);
+    this.look = new LookPanelHost(this);
     this.suspects = new SuspectDesk({ app: this.app, controller: this.controller, marksEnabled: () => this.settings.suspectMarks });
     this.suspects.onShowInPanel = () => void this.openSuspects();
     this.controller.onBookAttached = () => {
@@ -131,6 +135,11 @@ export default class AIhistoryPdfSync extends Plugin {
       callback: () => void this.openSuspects()
     });
     this.addCommand({
+      id: "open-look",
+      name: "外观与布局",
+      callback: () => this.look.open()
+    });
+    this.addCommand({
       id: "open-onboarding",
       name: "重新打开引导",
       callback: () => this.onboarding.show()
@@ -155,6 +164,7 @@ export default class AIhistoryPdfSync extends Plugin {
   onunload(): void {
     document.body.removeClass("aps-night", "aps-night-warm");
     this.onboarding?.dispose();
+    this.look?.dispose();
     this.controller?.dispose();
     this.suspects?.dispose();
   }
@@ -201,6 +211,8 @@ export default class AIhistoryPdfSync extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    // 设置在别处改了（工具条、设置页、引导）：外观面板开着就跟着变
+    this.look?.refresh();
   }
 
   /**

@@ -17,7 +17,8 @@ export {
 export { HeadingCrumbs, type OutlineActions, type OutlinePrefs, type OutlineStatus, type OutlineStyle } from "./Outline";
 export { BindDialog, PagemarkDialog, type BindDialogProps, type PagemarkDialogProps } from "./Dialogs";
 export { Check, CheckRow, Choice, ChoiceRow, type ChoiceOption } from "./controls";
-export { Preview, type DockChoice, type PreviewOptions } from "./Preview";
+export { Preview, type DockChoice, type PreviewOptions, type PreviewOutline } from "./Preview";
+export { LookPanel, type LookPanelProps, type LookValues } from "./LookPanel";
 export { AUTO_OPEN_LABEL, Onboarding, type OnboardingBook, type OnboardingProps, type OnboardingValues } from "./Onboarding";
 export { Coachmark, type CoachmarkProps, type CoachStep } from "./Coachmark";
 export { GettingStarted, SettingsHeader, type PracticeTask } from "./SettingsBlocks";

@@ -32,6 +32,10 @@ async function toggleRow(label: string): Promise<void> {
   await browser.pause(250);
 }
 
+async function lookOpen(): Promise<boolean> {
+  return browser.executeObsidian(() => !!document.querySelector(".aps-look"));
+}
+
 async function settings(): Promise<any> {
   return browser.executeObsidian(({ app }, id) => JSON.parse(JSON.stringify((app as any).plugins.plugins[id].settings)), PLUGIN);
 }
@@ -114,20 +118,22 @@ describe("首次引导", function () {
     expect(await dialogOpen()).toBe(false);
   });
 
-  it("设置页：分组、实时预览；「重新打开引导」关掉设置窗再弹引导；跳过不改设置", async () => {
+  it("设置页：分组、「外观与布局…」入口；「重新打开引导」关掉设置窗再弹引导；跳过不改设置", async () => {
     await openSettingsTab();
     const page = await browser.executeObsidian(({ app }) => {
       const root: HTMLElement = (app as any).setting.activeTab.containerEl;
       return {
         title: root.querySelector(".aps-settings-title")?.textContent ?? "",
-        preview: root.querySelector<HTMLElement>(".aps-settings-head .aps-preview")?.dataset.side,
+        look: root.querySelector(".aps-settings-head .aps-open-look")?.textContent,
+        preview: !!root.querySelector(".aps-settings-head .aps-preview"),
         practice: root.querySelectorAll(".aps-practice-row").length,
         text: root.textContent ?? "",
         popout: root.ownerDocument !== document
       };
     });
     expect(page.title).toContain("PDF Sync Markdown");
-    expect(page.preview).toBe("right");
+    expect(page.look).toBe("外观与布局…");
+    expect(page.preview).toBe(false);
     expect(page.practice).toBe(2);
     for (const heading of ["布局", "联动", "外观", "上手", "高级", "跟随基准线"]) expect(page.text).toContain(heading);
     // 设置窗是单独的窗口：切过去截图再切回来
@@ -150,6 +156,97 @@ describe("首次引导", function () {
     expect(await dialogOpen()).toBe(false);
     const after = await settings();
     expect({ pdfSide: after.pdfSide, bidirectional: after.bidirectional, pageLabels: after.pageLabels }).toEqual({ pdfSide: before.pdfSide, bidirectional: before.bidirectional, pageLabels: before.pageLabels });
+  });
+
+  it("外观与布局：设置页按钮关掉设置窗、在右上弹出不挡界面的面板；点了立刻生效，撤回回到打开前", async () => {
+    await openSettingsTab();
+    await browser.executeObsidian(({ app }) => (app as any).setting.activeTab.containerEl.querySelector(".aps-open-look").click());
+    await browser.waitUntil(lookOpen, { timeoutMsg: "外观面板没弹出来" });
+    expect(await settingsOpen()).toBe(false);
+    const placed = await browser.executeObsidian(() => {
+      const box = document.querySelector<HTMLElement>(".aps-look")!.getBoundingClientRect();
+      return { right: window.innerWidth - box.right, top: box.top, backdrop: !!document.querySelector(".aps-dialog-backdrop"), undo: document.querySelector<HTMLButtonElement>(".aps-look-undo")!.disabled };
+    });
+    expect(placed.right).toBeLessThan(40);
+    expect(placed.top).toBeLessThan(120);
+    expect(placed.backdrop).toBe(false);
+    expect(placed.undo).toBe(true);
+    const before = await settings();
+    await clickText("左边", ".aps-look");
+    await settle(1500);
+    await clickText("细线", ".aps-look");
+    await clickText("分栏", ".aps-look");
+    await clickText("左侧竖条", ".aps-look");
+    const changed = await settings();
+    expect(changed).toMatchObject({ pdfSide: "left", baselineStyle: "line", outlineStyle: "columns", shadeStyle: "bar" });
+    const live = await browser.executeObsidian(({ app }, id) => {
+      const controller = (app as any).plugins.plugins[id].controller;
+      return {
+        pdfLeft: controller.pdf.leaf.view.containerEl.getBoundingClientRect().left < controller.markdownView.containerEl.getBoundingClientRect().left,
+        line: document.querySelectorAll(".aps-baseline.is-line").length,
+        previewSide: document.querySelector<HTMLElement>(".aps-look .aps-preview")?.dataset.side,
+        previewOutline: !!document.querySelector(".aps-look .aps-pv-outline.is-columns"),
+        undo: document.querySelector<HTMLButtonElement>(".aps-look-undo")!.disabled
+      };
+    }, PLUGIN);
+    expect(live).toEqual({ pdfLeft: true, line: before.showBaseline && !before.paused ? 2 : 0, previewSide: "left", previewOutline: true, undo: false });
+    await browser.saveScreenshot(`${SCREENSHOTS}/11-外观与布局.png`);
+    await clickText("撤回本次改动", ".aps-look");
+    await settle(1500);
+    const undone = await settings();
+    expect({ pdfSide: undone.pdfSide, baselineStyle: undone.baselineStyle, outlineStyle: undone.outlineStyle, shadeStyle: undone.shadeStyle }).toEqual({
+      pdfSide: before.pdfSide,
+      baselineStyle: before.baselineStyle,
+      outlineStyle: before.outlineStyle,
+      shadeStyle: before.shadeStyle
+    });
+    expect(await browser.executeObsidian(() => document.querySelector<HTMLButtonElement>(".aps-look-undo")!.disabled)).toBe(true);
+    await browser.executeObsidian(() => document.querySelector<HTMLElement>(".aps-look")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    await settle(300);
+    expect(await lookOpen()).toBe(false);
+  });
+
+  it("外观与布局：工具条 ⋯ 菜单、命令都能打开，再开不出第二个；拖动后记住位置；全部恢复默认先确认", async () => {
+    await browser.executeObsidian(async () => {
+      document.querySelector<HTMLElement>(".aps-toolbar .aps-more")!.click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      document.querySelector<HTMLElement>(".aps-menu .aps-open-look")!.click();
+    });
+    await browser.waitUntil(lookOpen, { timeoutMsg: "菜单没打开外观面板" });
+    await browser.executeObsidian(({ app }, id) => (app as any).commands.executeCommandById(`${id}:open-look`), PLUGIN);
+    await settle(300);
+    expect(await browser.executeObsidian(() => document.querySelectorAll(".aps-look").length)).toBe(1);
+    const moved = await browser.executeObsidian(async () => {
+      const head = document.querySelector<HTMLElement>(".aps-look-head")!;
+      const start = head.getBoundingClientRect();
+      const fire = (type: string, x: number, y: number) => head.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, buttons: 1, pointerId: 1, clientX: x, clientY: y }));
+      fire("pointerdown", start.left + 60, start.top + 10);
+      fire("pointermove", 260, 210);
+      fire("pointerup", 260, 210);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const box = document.querySelector<HTMLElement>(".aps-look")!.getBoundingClientRect();
+      return { x: Math.round(box.left), y: Math.round(box.top) };
+    });
+    expect((await settings()).lookPanel).toEqual(moved);
+    await browser.executeObsidian(() => document.querySelector<HTMLElement>(".aps-look-close")!.click());
+    await settle(300);
+    await browser.executeObsidian(({ app }, id) => (app as any).commands.executeCommandById(`${id}:open-look`), PLUGIN);
+    await browser.waitUntil(lookOpen, { timeoutMsg: "命令没打开外观面板" });
+    // 进场动画带一点位移与缩放：比 left/top，不比外框
+    const again = await browser.executeObsidian(() => {
+      const panel = document.querySelector<HTMLElement>(".aps-look")!;
+      return { x: parseFloat(panel.style.left), y: parseFloat(panel.style.top) };
+    });
+    expect(again).toEqual(moved);
+    await clickText("左侧竖条", ".aps-look");
+    await clickText("全部恢复默认", ".aps-look");
+    expect((await settings()).shadeStyle).toBe("bar");
+    await clickText("恢复默认", ".aps-look");
+    await settle(1500);
+    const reset = await settings();
+    expect(reset).toMatchObject({ shadeStyle: "tint", pdfSide: "left", baselineStyle: "band", outlineStyle: "tree", pageLabels: true });
+    await browser.executeObsidian(() => document.querySelector<HTMLElement>(".aps-look-close")!.click());
+    await settle(300);
   });
 
   it("开始导览：关掉引导窗，在真工具条上走三步气泡（把手 → 页码 → 联动开关）", async () => {

@@ -1,13 +1,13 @@
 /**
  * 设置与设置页（design/onboarding-settings-approved.html 的「设置页」）：
- * 顶部插件名 +「重新打开引导」+ 实时预览；分组 布局 / 联动 / 外观 / 上手；其余放「高级」子页。
+ * 顶部插件名 +「外观与布局…」+「重新打开引导」；分组 布局 / 联动 / 外观 / 上手；其余放「高级」子页。
  * 普通开关、选择项用 Obsidian 的声明式设置接口（设置搜索能搜到）；顶部与「上手」两块用 React 自绘嵌入。
  */
 import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type AIhistoryPdfSync from "./main";
 import { mountReact } from "./react-mount";
 import type { OutlineBookState, OutlinePages } from "./core/outline-view";
-import { GettingStarted, SettingsHeader, type DockChoice, type OutlineStyle, type PreviewOptions, type SyncMode } from "./ui";
+import { GettingStarted, SettingsHeader, type DockChoice, type OutlineStyle, type SyncMode } from "./ui";
 
 export type ToolbarMode = "docked" | "floating";
 export type DockTarget = "markdown" | "pdf";
@@ -79,6 +79,8 @@ export interface PdfSyncSettings {
   outlinePinned: boolean;
   /** 各本书的目录展开记忆，键是书的 PDF 路径 */
   outlineBooks: Record<string, OutlineBookState>;
+  /** 外观与布局面板上次停的位置（窗口坐标）；null 停在右上 */
+  lookPanel: { x: number; y: number } | null;
   /** 首次引导弹过了 */
   onboarded: boolean;
   /** 「上手」里做到了的练习 */
@@ -113,6 +115,7 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   outlinePinButton: true,
   outlinePinned: false,
   outlineBooks: {},
+  lookPanel: null,
   onboarded: false,
   practice: { highlight: false, pageEdit: false },
   textLayerNoticed: []
@@ -151,19 +154,6 @@ export function syncModeOf(settings: PdfSyncSettings): SyncMode {
 export function applySyncMode(settings: PdfSyncSettings, mode: SyncMode): void {
   settings.paused = mode === "paused";
   if (mode !== "paused") settings.bidirectional = mode === "both";
-}
-
-export function previewOf(settings: PdfSyncSettings): PreviewOptions {
-  return {
-    pdfSide: settings.pdfSide,
-    dock: dockChoiceOf(settings.toolbar),
-    mode: syncModeOf(settings),
-    pageLabels: settings.pageLabels,
-    shade: settings.shadeStyle,
-    baseline: settings.showBaseline ? settings.baselineStyle : false,
-    night: nightActive(settings.nightMode, document.body.hasClass("theme-dark")) ? settings.nightTone : false,
-    reducedMotion: settings.reducedMotion
-  };
 }
 
 export const PRACTICE: Array<{ id: PracticeId; label: string; hint: string }> = [
@@ -216,8 +206,8 @@ export class PdfSyncSettingTab extends PluginSettingTab {
           this.rerenderHeader = () => handle.render(
             <SettingsHeader
               title="PDF Sync Markdown"
-              preview={previewOf(this.plugin.settings)}
               message={this.message}
+              onLook={() => this.plugin.look.open()}
               onReopen={() => {
                 this.closeSettings();
                 this.plugin.onboarding.show();

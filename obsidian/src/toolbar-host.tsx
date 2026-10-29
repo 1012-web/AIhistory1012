@@ -24,6 +24,7 @@ export interface ToolbarHostOptions {
   zoom(delta: number | null): void;
   rebind(): void;
   openSettings(): void;
+  openLook(): void;
   setOutline(prefs: OutlinePrefs): void;
   setOutlineBook(state: OutlineBookState): void;
 }
@@ -63,6 +64,7 @@ export class ToolbarHost {
       zoom: (delta) => options.zoom(delta),
       rebind: () => options.rebind(),
       openSettings: () => options.openSettings(),
+      openLook: () => options.openLook(),
       setOutline: (prefs) => options.setOutline(prefs),
       setOutlineBook: (state) => options.setOutlineBook(state),
       setCollapsed: (collapsed) => {
