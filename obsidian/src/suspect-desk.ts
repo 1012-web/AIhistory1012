@@ -96,9 +96,21 @@ export class SuspectDesk {
     return this.items.find((item) => keyOf(item) === key) ?? null;
   }
 
+  /**
+   * 原页截图：清单里可能写库内完整路径，也可能是只有文件名的 ![[C00224.png]]（图在 _数据/疑字图/ 里）。
+   * 先按路径找，找不到再按 Obsidian 解析链接的规矩从清单所在处找。
+   */
+  private imageFile(link: string | null): TFile | null {
+    if (!link) return null;
+    const path = link.split("|")[0].trim();
+    const direct = this.app.vault.getAbstractFileByPath(path);
+    if (direct instanceof TFile) return direct;
+    return this.app.metadataCache.getFirstLinkpathDest(path, this.list?.path ?? "");
+  }
+
   cards(): SuspectCard[] {
     return this.items.map((item) => {
-      const image = item.image ? this.app.vault.getAbstractFileByPath(item.image) : null;
+      const image = this.imageFile(item.image);
       return {
         key: keyOf(item),
         id: item.id,
@@ -121,9 +133,8 @@ export class SuspectDesk {
   }
 
   async openImage(key: string): Promise<void> {
-    const path = this.itemFor(key)?.image;
-    const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
-    if (file instanceof TFile) await this.app.workspace.getLeaf("tab").openFile(file);
+    const file = this.imageFile(this.itemFor(key)?.image ?? null);
+    if (file) await this.app.workspace.getLeaf("tab").openFile(file);
   }
 
   showInPanel(key: string): void {
@@ -298,8 +309,8 @@ export class SuspectDesk {
     if (!item) return null;
     const root = createDiv({ cls: "aps-suspect-tip" });
     root.createDiv({ cls: "aps-suspect-meta", text: [item.id, item.kind, item.link.page ? `PDF 第 ${item.link.page} 页` : null, item.state === "doubt" ? "存疑" : null].filter(Boolean).join(" · ") });
-    const image = item.image ? this.app.vault.getAbstractFileByPath(item.image) : null;
-    if (image instanceof TFile) {
+    const image = this.imageFile(item.image);
+    if (image) {
       const strip = root.createDiv({ cls: "aps-suspect-strip", attr: { title: "点开看原图；左右拖动看整行" } });
       const img = strip.createEl("img", { attr: { src: this.app.vault.getResourcePath(image), alt: "原页截图" } });
       img.addEventListener("load", () => {
