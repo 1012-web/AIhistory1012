@@ -17,7 +17,7 @@ export interface PreviewOptions {
   pageLabels: boolean;
   /** 当前页标示：淡底色 / 左侧竖条 / 不标示 */
   shade: "tint" | "bar" | "off";
-  /** 阅读线样式；false 不画 */
+  /** 阅读线样式；false 不画（暂停时也不画） */
   baseline?: "band" | "line" | "markers" | false;
   /** 夜间模式生效时的色调；false 不反色 */
   night?: "neutral" | "warm" | false;
@@ -85,7 +85,7 @@ export function Preview({ options, height = 150, className }: { options: Preview
       <LayoutGroup>
         <div ref={boxRef} className={`aps-preview ${className ?? ""}`} style={{ height }} data-side={options.pdfSide} data-dock={options.dock}>
           {options.pdfSide === "left" ? [pdfPane, mdPane] : [mdPane, pdfPane]}
-          {options.baseline ? (
+          {options.baseline && options.mode !== "paused" ? (
             <div className={`aps-pv-baseline is-${options.baseline}`} aria-hidden="true">
               {options.baseline === "line" ? <span className="aps-baseline-label">阅读线</span> : null}
             </div>

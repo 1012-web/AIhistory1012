@@ -721,18 +721,19 @@ describe("工具条", function () {
     await settle(600);
   });
 
-  it("分段开关：双向 / 单向 / 暂停 切换联动方式，选中底色跟着走", async () => {
+  it("分段开关：双向 / 单向 / 暂停 切换联动方式，选中底色跟着走；暂停时收起阅读线", async () => {
     const pick = async (label: string) => browser.executeObsidian(async ({ app }, text) => {
       const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;
       const segment = [...document.querySelectorAll<HTMLElement>(".aps-segment")].find((el) => el.textContent === text)!;
       segment.click();
       await new Promise((resolve) => setTimeout(resolve, 400));
       const pressed = document.querySelector<HTMLElement>(".aps-segment[data-pressed]");
-      return { mode: controller.mode, bidirectional: controller.settings.bidirectional, paused: controller.paused, pressed: pressed?.textContent, bg: !!pressed?.querySelector(".aps-seg-ind") };
+      const lines = document.querySelectorAll(".aps-baseline").length;
+      return { mode: controller.mode, bidirectional: controller.settings.bidirectional, paused: controller.paused, pressed: pressed?.textContent, bg: !!pressed?.querySelector(".aps-seg-ind"), lines };
     }, label);
-    expect(await pick("单向")).toEqual({ mode: "one", bidirectional: false, paused: false, pressed: "单向", bg: true });
-    expect(await pick("暂停")).toEqual({ mode: "paused", bidirectional: false, paused: true, pressed: "暂停", bg: true });
-    expect(await pick("双向")).toEqual({ mode: "both", bidirectional: true, paused: false, pressed: "双向", bg: true });
+    expect(await pick("单向")).toEqual({ mode: "one", bidirectional: false, paused: false, pressed: "单向", bg: true, lines: 2 });
+    expect(await pick("暂停")).toEqual({ mode: "paused", bidirectional: false, paused: true, pressed: "暂停", bg: true, lines: 0 });
+    expect(await pick("双向")).toEqual({ mode: "both", bidirectional: true, paused: false, pressed: "双向", bg: true, lines: 2 });
   });
 
   it("溢出菜单：缩放、配对 PDF 名", async () => {

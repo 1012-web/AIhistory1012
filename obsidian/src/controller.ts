@@ -150,6 +150,7 @@ export class SyncController {
     applySyncMode(this.settings, mode);
     void this.host.saveSettings();
     this.refreshStatus();
+    if (wasPaused !== this.paused) this.refreshBaselines();
     if (wasPaused && !this.paused) this.syncFromMarkdown(true);
   }
 
@@ -239,9 +240,9 @@ export class SyncController {
     this.refreshBaselines();
   }
 
-  /** 按设置显示或收起两条阅读线，并按当前布局与样式重算 */
+  /** 按设置显示或收起两条阅读线，并按当前布局与样式重算；暂停跟随时两边不对齐，线也收起 */
   private refreshBaselines(): void {
-    const show = this.settings.showBaseline && !!this.book;
+    const show = this.settings.showBaseline && !!this.book && !this.paused;
     for (const line of [this.markdownLine, this.pdfLine]) {
       if (!line) continue;
       if (show) line.show();
