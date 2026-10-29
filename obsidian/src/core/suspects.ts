@@ -322,9 +322,31 @@ export function removeNotes(notesText: string, id: string | null): string {
   return notesText.endsWith("\n") && !kept.endsWith("\n") ? `${kept}\n` : kept;
 }
 
-/** 「书/X.疑字清单.md」→「书/X.AI校注.md」 */
-export function notesPathFor(listPath: string): string {
-  return listPath.replace(/\.疑字清单\.md$/, ".AI校注.md");
+// 疑字清单、校注排在书文件夹最后：98-<书名>.疑字清单.md、99-<书名>.AI校注.md；0.1.5 之前的旧书不带序号（见 anchors.md 第四节）
+export const LIST_SUFFIX = ".疑字清单.md";
+export const NOTES_SUFFIX = ".AI校注.md";
+const LIST_PREFIX = "98-";
+const NOTES_PREFIX = "99-";
+
+/** 同一文件夹里认后缀找已有的那份：带序号的优先，再按文件名；没有返回 null */
+export function pickSidecar(names: string[], kind: "list" | "notes"): string | null {
+  const [prefix, suffix] = kind === "list" ? [LIST_PREFIX, LIST_SUFFIX] : [NOTES_PREFIX, NOTES_SUFFIX];
+  const rank = (name: string) => (name.startsWith(prefix) ? 0 : 1);
+  const found = names.filter((name) => name.endsWith(suffix)).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
+  return found[0] ?? null;
 }
 
-export const LIST_SUFFIX = ".疑字清单.md";
+/** 「98-X.疑字清单.md」「X.疑字清单.md」→「X」 */
+export function bookNameOf(listName: string): string {
+  const name = listName.slice(listName.lastIndexOf("/") + 1);
+  return name.replace(/\.疑字清单\.md$/, "").replace(/^98-/, "");
+}
+
+/**
+ * 由清单找校注：同一书文件夹里已有的 *.AI校注.md 就沿用（旧书不带序号，不另开一份）；都没有才是「99-<书名>.AI校注.md」。
+ * siblings 是这个文件夹里的文件名（由宿主列出）。
+ */
+export function notesPathFor(listPath: string, siblings: string[]): string {
+  const dir = listPath.slice(0, listPath.lastIndexOf("/") + 1);
+  return dir + (pickSidecar(siblings, "notes") ?? `${NOTES_PREFIX}${bookNameOf(listPath)}${NOTES_SUFFIX}`);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAnchors, pageSegments } from "../src/core/anchors";
-import { appendNote, asNow, clearInList, locateItem, markInList, nextOpen, NOTES_HEADING, notesPathFor, parseSuspectList, removeNotes, type SuspectItem } from "../src/core/suspects";
+import { appendNote, asNow, bookNameOf, clearInList, locateItem, markInList, nextOpen, NOTES_HEADING, notesPathFor, parseSuspectList, pickSidecar, removeNotes, type SuspectItem } from "../src/core/suspects";
 
 const enc = encodeURIComponent;
 
@@ -131,8 +131,32 @@ describe("写回", () => {
     expect(same).toContain("| — | 页码不明（x.md） | 甲 | （维持原字） |");
   });
 
-  it("校注文件名跟着清单", () => {
-    expect(notesPathFor("书/某书.疑字清单.md")).toBe("书/某书.AI校注.md");
+  it("书名：去掉 98- 与后缀；旧书不带序号的照旧", () => {
+    expect(bookNameOf("书/98-某书.疑字清单.md")).toBe("某书");
+    expect(bookNameOf("98-某书.疑字清单.md")).toBe("某书");
+    expect(bookNameOf("书/某书.疑字清单.md")).toBe("某书");
+  });
+
+  it("校注文件：新书没有校注时建 99-<书名>.AI校注.md", () => {
+    expect(notesPathFor("书/98-某书.疑字清单.md", ["01-正文.md", "98-某书.疑字清单.md"])).toBe("书/99-某书.AI校注.md");
+    expect(notesPathFor("98-某书.疑字清单.md", [])).toBe("99-某书.AI校注.md");
+  });
+
+  it("校注文件：同一文件夹里已有的沿用，带 99- 的优先", () => {
+    expect(notesPathFor("书/98-某书.疑字清单.md", ["98-某书.疑字清单.md", "99-某书.AI校注.md"])).toBe("书/99-某书.AI校注.md");
+    expect(notesPathFor("书/98-某书.疑字清单.md", ["某书.AI校注.md", "99-某书.AI校注.md"])).toBe("书/99-某书.AI校注.md");
+  });
+
+  it("校注文件：旧书不带序号的沿用旧名，不另建带序号的", () => {
+    expect(notesPathFor("书/某书.疑字清单.md", ["01-正文.md", "某书.AI校注.md", "某书.疑字清单.md"])).toBe("书/某书.AI校注.md");
+    // 清单是旧名、还没有校注：照新名建
+    expect(notesPathFor("书/某书.疑字清单.md", ["某书.疑字清单.md"])).toBe("书/99-某书.AI校注.md");
+  });
+
+  it("找清单：认后缀，带 98- 的优先；没有返回 null", () => {
+    expect(pickSidecar(["01-正文.md", "某书.疑字清单.md"], "list")).toBe("某书.疑字清单.md");
+    expect(pickSidecar(["某书.疑字清单.md", "98-某书.疑字清单.md"], "list")).toBe("98-某书.疑字清单.md");
+    expect(pickSidecar(["01-正文.md", "99-某书.AI校注.md"], "list")).toBeNull();
   });
 });
 

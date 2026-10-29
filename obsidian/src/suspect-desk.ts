@@ -7,7 +7,7 @@ import { MarkdownView, Notice, TFile, TFolder, type App } from "obsidian";
 import { findNote } from "./pairing";
 import type { SyncController } from "./controller";
 import { editorViewOf, modeOf, parsedText } from "./markdown-pane";
-import { appendNote, asNow, clearInList, EMPTY_MARK, LIST_SUFFIX, locateItem, markInList, notesPathFor, parseSuspectList, removeNotes, today, type SuspectItem } from "./core/suspects";
+import { appendNote, asNow, bookNameOf, clearInList, EMPTY_MARK, locateItem, markInList, notesPathFor, parseSuspectList, pickSidecar, removeNotes, today, type SuspectItem } from "./core/suspects";
 import { pushSuspectMarks, type SuspectMark } from "./suspect-ext";
 import type { SuspectCard } from "./ui";
 
@@ -20,6 +20,10 @@ export interface SuspectDeskHost {
 /** 条目的稳定键：有编号用编号，否则用行号（只在这份清单里有效） */
 export function keyOf(item: SuspectItem): string {
   return item.id ?? `line:${item.line}`;
+}
+
+function fileNames(folder: TFolder): string[] {
+  return folder.children.filter((child) => child instanceof TFile).map((child) => child.name);
 }
 
 function shown(text: string): string {
@@ -64,8 +68,9 @@ export class SuspectDesk {
   private findList(root: string): TFile | null {
     const folder = root ? this.app.vault.getAbstractFileByPath(root) : this.app.vault.getRoot();
     if (!(folder instanceof TFolder)) return null;
-    const lists = folder.children.filter((child): child is TFile => child instanceof TFile && child.name.endsWith(LIST_SUFFIX));
-    return lists[0] ?? null;
+    const name = pickSidecar(fileNames(folder), "list");
+    const list = name ? folder.children.find((child) => child.name === name) : null;
+    return list instanceof TFile ? list : null;
   }
 
   async reload(): Promise<void> {
@@ -239,7 +244,7 @@ export class SuspectDesk {
 
   /** 校注：先删这一条的旧行；chosen 不为 null 时再补一行（原字是清单上的现字，即这条的净改动） */
   private async writeNotes(list: TFile, item: SuspectItem, note: TFile | null, chosen: string | null): Promise<void> {
-    const path = notesPathFor(list.path);
+    const path = notesPathFor(list.path, list.parent ? fileNames(list.parent) : []);
     const row = chosen === null ? null : { id: item.id, page: item.link.page, file: note?.name ?? item.link.file, from: item.link.text, to: chosen };
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing instanceof TFile) {
@@ -250,7 +255,7 @@ export class SuspectDesk {
       return;
     }
     if (!row) return;
-    const about = list.basename.replace(/\.疑字清单$/, "");
+    const about = bookNameOf(list.name);
     await this.app.vault.create(path, appendNote(`---\ntype: AI校注\nabout: ${about}\n---\n\n# ${about} · AI 校注\n`, row));
   }
 

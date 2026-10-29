@@ -4,8 +4,11 @@ import { BOOK, FILE, openBookFile, SCREENSHOTS, settle, windowSize } from "./hel
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const LIST = `${BOOK}/${BOOK}.疑字清单.md`;
-const NOTES = `${BOOK}/${BOOK}.AI校注.md`;
+// skill 0.1.5 起带序号；旧书不带序号的见末尾「旧书」一节
+const LIST = `${BOOK}/98-${BOOK}.疑字清单.md`;
+const NOTES = `${BOOK}/99-${BOOK}.AI校注.md`;
+const OLD_LIST = `${BOOK}/${BOOK}.疑字清单.md`;
+const OLD_NOTES = `${BOOK}/${BOOK}.AI校注.md`;
 const CHAPTER = FILE("03-論正統");
 
 /** 一条清单条目（照 book2md1012 的写法）；字是样例书里的真字，「VL」读法是编的 */
@@ -91,6 +94,11 @@ describe("判字", function () {
     const notes = await read(NOTES);
     expect(notes).toContain("## 用户判定的疑字");
     expect(notes).toContain("| C901 | PDF 第 18 页（03-論正統.md） | 闢 | 辟 | 人工看图 |");
+    // 新建的校注：书名不带清单的 98- 序号，也不另造「98-书名.AI校注.md」
+    expect(notes).toContain(`about: ${BOOK}
+`);
+    expect(notes).toContain(`# ${BOOK} · AI 校注`);
+    expect(await read(`${BOOK}/98-${BOOK}.AI校注.md`)).toBeNull();
     await browser.waitUntil(async () => browser.executeObsidian(() => document.querySelector(".aps-suspect-card .aps-suspect-meta")?.textContent?.includes("C902") ?? false), { timeoutMsg: "没跳到下一条" });
     expect(await browser.executeObsidian(() => document.querySelector(".aps-suspects-count")?.textContent)).toBe("已判 1 / 共 4");
   });
@@ -190,5 +198,25 @@ describe("判字", function () {
     expect(await rows()).toEqual([]);
     // 别的条目的行还在，这一节不删
     expect(await read(NOTES)).toContain("| C903 |");
+  });
+});
+
+describe("判字：旧书不带序号", function () {
+  it("清单、校注是旧名时照旧找到、沿用，不另建带序号的校注", async () => {
+    const found = await browser.executeObsidian(async ({ app }, list, notes, oldList, oldNotes) => {
+      await app.vault.rename(app.vault.getAbstractFileByPath(list)!, oldList);
+      await app.vault.rename(app.vault.getAbstractFileByPath(notes)!, oldNotes);
+      const desk = (app as any).plugins.plugins["aihistory-pdf-sync"].suspects;
+      desk.list = null;
+      await desk.follow();
+      return desk.list?.path ?? null;
+    }, LIST, NOTES, OLD_LIST, OLD_NOTES);
+    expect(found).toBe(OLD_LIST);
+    await browser.executeObsidian(async ({ app }) => {
+      await (app as any).plugins.plugins["aihistory-pdf-sync"].suspects.decide("C902", "埒");
+    });
+    expect(line(await read(OLD_LIST), "C902")).toContain("判定作【埒】");
+    expect(await read(OLD_NOTES)).toContain("| C902 | PDF 第 19 页（03-論正統.md） | 埒 | （维持原字） | 人工看图 |");
+    expect(await read(NOTES)).toBeNull();
   });
 });
