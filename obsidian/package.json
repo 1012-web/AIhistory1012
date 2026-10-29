@@ -1,6 +1,6 @@
 {
   "name": "aihistory-pdf-sync",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "PDF Sync Markdown: page-anchored Markdown and PDF side by side",
   "scripts": {
