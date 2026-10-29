@@ -736,6 +736,55 @@ describe("工具条", function () {
     expect(await pick("双向")).toEqual({ mode: "both", bidirectional: true, paused: false, pressed: "双向", bg: true, lines: 2 });
   });
 
+  it("关掉 PDF：自动暂停，工具条换成「打开 PDF」，回到正文也不自动开；点它开回来并恢复双向；关了再选单向也会开", async () => {
+    const info = await browser.executeObsidian(async ({ app }) => {
+      const plugin = (app as any).plugins.plugins["aihistory-pdf-sync"];
+      const controller = plugin.controller;
+      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const snap = () => ({
+        open: !!controller.pdf,
+        mode: controller.mode,
+        byClose: plugin.settings.pausedByClose,
+        button: !!document.querySelector(".aps-toolbar .aps-open-pdf"),
+        swap: !!document.querySelector(".aps-toolbar .aps-swap")
+      });
+      const closePdf = async () => {
+        controller.pdf.leaf.detach();
+        await wait(800);
+      };
+      await closePdf();
+      const closed = snap();
+      // 焦点回到正文（打开笔记时自动开 PDF 是开着的）：用户刚关的不再自己弹回来
+      app.workspace.setActiveLeaf(controller.markdownLeaf, { focus: true });
+      await controller.onActiveLeaf(controller.markdownLeaf);
+      await wait(600);
+      const back = snap();
+      document.querySelector<HTMLElement>(".aps-toolbar .aps-open-pdf")!.click();
+      await wait(1500);
+      const reopened = snap();
+      await closePdf();
+      [...document.querySelectorAll<HTMLElement>(".aps-segment")].find((el) => el.textContent === "单向")!.click();
+      await wait(1500);
+      const one = snap();
+      // 先手动暂停再关：不算关 PDF 转的暂停，开回来仍是暂停
+      controller.setMode("paused");
+      await closePdf();
+      const manual = snap();
+      document.querySelector<HTMLElement>(".aps-toolbar .aps-open-pdf")!.click();
+      await wait(1500);
+      const manualReopened = snap();
+      controller.setMode("both");
+      await wait(300);
+      return { closed, back, reopened, one, manual, manualReopened };
+    });
+    expect(info.closed).toEqual({ open: false, mode: "paused", byClose: true, button: true, swap: false });
+    expect(info.back).toEqual({ open: false, mode: "paused", byClose: true, button: true, swap: false });
+    expect(info.reopened).toEqual({ open: true, mode: "both", byClose: false, button: false, swap: true });
+    expect(info.one).toEqual({ open: true, mode: "one", byClose: false, button: false, swap: true });
+    expect(info.manual).toEqual({ open: false, mode: "paused", byClose: false, button: true, swap: false });
+    expect(info.manualReopened).toEqual({ open: true, mode: "paused", byClose: false, button: false, swap: true });
+  });
+
   it("溢出菜单：缩放、配对 PDF 名", async () => {
     const info = await browser.executeObsidian(async ({ app }) => {
       const controller = (app as any).plugins.plugins["aihistory-pdf-sync"].controller;

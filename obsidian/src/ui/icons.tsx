@@ -1,4 +1,4 @@
-/** 对话框用的小图标（自绘线条，不引图标库） */
+/** 对话框、工具条用的小图标（自绘线条，不引图标库） */
 import type { ReactElement } from "react";
 
 /** 定位到当前位置：准星 */
@@ -17,7 +17,14 @@ export const PinIcon = (): ReactElement => (
   </svg>
 );
 
-export const CheckIcon = (): ReactElement => (
+/** 打开 PDF：折角的一页纸 */
+export const PdfIcon = (): ReactElement => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 1.75h5.25L12.5 5v9.25H4zM9 1.75V5.25h3.5M6 8.5h4.5M6 11h4.5" />
+  </svg>
+);
+
+export const CheckIcon =(): ReactElement => (
   <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3.5 8.5 6.5 11.5 12.5 5" />
   </svg>

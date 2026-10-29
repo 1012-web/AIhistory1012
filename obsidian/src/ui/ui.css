@@ -95,6 +95,16 @@
   background: var(--aps-surface-1);
   color: var(--aps-text-primary);
 }
+/* PDF 关着时的「打开 PDF」：强调色描边，一眼找得到 */
+.aps-toolbar button.aps-open-pdf {
+  gap: 4px;
+  border-color: var(--aps-border-accent);
+  background: var(--aps-bg-accent);
+  color: var(--aps-text-accent);
+}
+.aps-toolbar button.aps-open-pdf:hover {
+  color: var(--aps-text-accent);
+}
 .aps-toolbar button.aps-collapse,
 .aps-toolbar button.aps-more {
   height: 24px;

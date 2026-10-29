@@ -78,6 +78,10 @@ export class SyncController {
   private selectionTimer: number | null = null;
   private suppressSelectionUntil = 0;
   private opening: Promise<PdfPane | null> | null = null;
+  /** 当前 PDF 窗格的文件路径（标签关掉后 view 里的 file 可能已清空，先记下） */
+  private pdfPath: string | null = null;
+  /** 用户本次会话里关掉的那份 PDF：再进这本书的笔记不自动开，等用户点「打开 PDF」或选双向、单向 */
+  private closedPdf: string | null = null;
   /** 逐行对齐：PDF 各页文字层与正文各页段的对齐点（缓存） */
   readonly lines = new LineMap((page) => this.pdf?.pageLines(page) ?? Promise.resolve(null));
   private linesFrame: number | null = null;
@@ -112,6 +116,7 @@ export class SyncController {
         this.refreshStatus();
       },
       swapSide: () => void this.swapSide(),
+      openPdf: () => void this.ensurePdf(),
       rebind: () => this.chooseAndBind(),
       openSettings: () => host.openSettings(),
       openLook: () => host.openLook(),
@@ -153,7 +158,9 @@ export class SyncController {
     void this.host.saveSettings();
     this.refreshStatus();
     if (wasPaused !== this.paused) this.refreshBaselines();
-    if (wasPaused && !this.paused) this.syncFromMarkdown(true);
+    // 选了双向或单向而 PDF 没开（比如刚关掉）：替用户开回来，开好后自己对齐一次
+    if (mode !== "paused" && !this.pdf && this.book) void this.ensurePdf();
+    else if (wasPaused && !this.paused) this.syncFromMarkdown(true);
   }
 
   get app(): App {
@@ -210,10 +217,15 @@ export class SyncController {
       this.app.workspace.setActiveLeaf(leaf, { focus: false });
     }
     if (existing && existing !== this.pdf?.leaf) this.attachPdf(existing);
-    if (!existing && this.pdf) this.detachPdf();
+    // 关掉 PDF 标签后焦点落回正文，这里可能先于 layout-change 发现
+    if (!existing && this.pdf) {
+      if (this.leafAlive(this.pdf.leaf)) this.detachPdf();
+      else this.onPdfClosed();
+    }
     this.toolbar.place();
     this.updateCurrentFromMarkdown();
-    if (!this.pdf && (this.settings.autoOpen || reopen)) await this.ensurePdf();
+    const closed = this.closedPdf === book.pdf.path;
+    if (!this.pdf && (reopen || (this.settings.autoOpen && !closed))) await this.ensurePdf();
     this.refreshStatus();
     this.onBookAttached?.();
   }
@@ -316,8 +328,17 @@ export class SyncController {
       this.prefetchLines(this.currentPage);
     });
     this.pdfLine = new BaselineLine(root, () => pane.container, () => this.ratioFor("pdf"), () => this.settings.baselineStyle, () => this.positionBaselines());
+    this.pdfPath = pane.file?.path ?? null;
+    if (this.pdfPath === this.closedPdf) this.closedPdf = null;
+    // 关 PDF 时自动转的暂停：PDF 回来了（工具条按钮、命令、自己从文件列表打开都算），恢复原来的联动方式
+    if (this.settings.pausedByClose) {
+      this.settings.paused = false;
+      this.settings.pausedByClose = false;
+      void this.host.saveSettings();
+    }
     this.refreshBaselines();
     this.toolbar.place();
+    this.refreshStatus();
   }
 
   private listen(list: Disposer[], target: EventTarget, type: string, handler: (event: Event) => void, capture: boolean): void {
@@ -350,11 +371,33 @@ export class SyncController {
     this.disposePdf();
     this.highlighter.clear();
     this.pdf = null;
+    this.pdfPath = null;
+  }
+
+  /**
+   * 用户关掉了 PDF 标签（插件自己换边时先 detachPdf 再关，不走这里）：
+   * 转成暂停，并记下这本书本次会话里不再自动开；工具条换成「打开 PDF」按钮。
+   */
+  private onPdfClosed(): void {
+    const path = this.pdfPath;
+    this.detachPdf();
+    this.closedPdf = path;
+    if (!this.paused) {
+      this.settings.paused = true;
+      this.settings.pausedByClose = true;
+      void this.host.saveSettings();
+      this.refreshBaselines();
+    }
+    this.refreshStatus();
   }
 
   /** 窗格关了、布局变了：检查两边是否还在 */
   onLayoutChange(): void {
-    if (this.pdf && !this.leafAlive(this.pdf.leaf)) this.detachPdf();
+    if (this.pdf && !this.leafAlive(this.pdf.leaf)) {
+      // 正文也一起没了（关整组、关窗口）不算用户关 PDF
+      if (this.markdownLeaf && this.leafAlive(this.markdownLeaf)) this.onPdfClosed();
+      else this.detachPdf();
+    }
     if (this.markdownLeaf && !this.leafAlive(this.markdownLeaf)) this.detachMarkdown();
     else if (this.markdownLeaf && this.book) this.toolbar.place();
     // 切换阅读 / 编辑视图、拖动分栏都会触发：滚动容器可能换了，线要重量
@@ -696,6 +739,7 @@ export class SyncController {
       outline: this.outlineStatus(),
       autoOpen: this.settings.autoOpen,
       mode: this.mode,
+      pdfOpen: !!this.pdf,
       pdfName: this.book.pdf.name,
       pdfSide: this.settings.pdfSide
     };

@@ -21,6 +21,7 @@ export interface ToolbarHostOptions {
   setMode(mode: SyncMode): void;
   setAutoOpen(value: boolean): void;
   swapSide(): void;
+  openPdf(): void;
   zoom(delta: number | null): void;
   rebind(): void;
   openSettings(): void;
@@ -61,6 +62,7 @@ export class ToolbarHost {
       setMode: (mode) => options.setMode(mode),
       setAutoOpen: (value) => options.setAutoOpen(value),
       swapSide: () => options.swapSide(),
+      openPdf: () => options.openPdf(),
       zoom: (delta) => options.zoom(delta),
       rebind: () => options.rebind(),
       openSettings: () => options.openSettings(),

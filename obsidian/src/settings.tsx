@@ -45,6 +45,8 @@ export interface PdfSyncSettings {
   bidirectional: boolean;
   /** 暂停跟随（工具条「暂停」，记住） */
   paused: boolean;
+  /** 这次暂停是用户关掉 PDF 时自动转的：PDF 再打开就恢复原来的双向或单向（记住，重启后照旧） */
+  pausedByClose: boolean;
   /** 打开配对的笔记时自动在旁边打开 PDF（默认开，记住上次的选择） */
   autoOpen: boolean;
   /** 页内逐行对齐（PDF 文字层逐行比对；没有可用文字层的页按比例）；关掉则只对齐到页首。键名沿用旧的「页内按比例」 */
@@ -94,6 +96,7 @@ export const DEFAULT_SETTINGS: PdfSyncSettings = {
   quietMs: 200,
   bidirectional: true,
   paused: false,
+  pausedByClose: false,
   autoOpen: true,
   proportional: true,
   showBaseline: true,
@@ -151,8 +154,10 @@ export function syncModeOf(settings: PdfSyncSettings): SyncMode {
   return settings.bidirectional ? "both" : "one";
 }
 
+/** 用户明确选了联动方式：不再是「关 PDF 自动转的暂停」 */
 export function applySyncMode(settings: PdfSyncSettings, mode: SyncMode): void {
   settings.paused = mode === "paused";
+  settings.pausedByClose = false;
   if (mode !== "paused") settings.bidirectional = mode === "both";
 }
 

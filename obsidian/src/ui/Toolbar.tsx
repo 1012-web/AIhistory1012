@@ -5,6 +5,7 @@
  *
  *   ⋮⋮  [‹ 37 /919 p.112 ›]  第三章 › 第二节 › 一、……  [双向|单向|暂停]  [⇄ PDF 左]  ⋯  –
  *   底边 2px 全书进度线；收起后只剩「37 · p.112」，宽度弹簧渐变。
+ *   PDF 关着时「⇄ PDF 左」换成强调色的「打开 PDF」。
  *
  * 多级标题：阅读线处所在标题连同各级上级排成一行（面包屑），只占一行、不把工具条撑高；
  * 放不下时上级先缩成省略号，当前这一级留得最多。点任一级弹出标题菜单（目录树或分栏，见 Outline.tsx）。
@@ -23,6 +24,7 @@ import { LayoutGroup, MotionConfig, animate, motion, useMotionValue, useReducedM
 import { SPRING } from "./motion";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from "react";
 import { HeadingCrumbs, type OutlineActions, type OutlineStatus } from "./Outline";
+import { PdfIcon } from "./icons";
 
 export type SyncMode = "both" | "one" | "paused";
 
@@ -35,6 +37,8 @@ export interface ToolbarStatus {
   /** PDF 缩放比例，1 = 100% */
   scale: number;
   mode: SyncMode;
+  /** PDF 窗格开着没有；关着时「⇄ PDF 左右」换成「打开 PDF」 */
+  pdfOpen: boolean;
   pdfName: string;
   pdfSide: "left" | "right";
   /** 打开配对的笔记时自动在旁边开 PDF（默认开，记住上次的选择） */
@@ -61,6 +65,8 @@ export interface ToolbarActions extends OutlineActions {
   setMode: (mode: SyncMode) => void;
   setAutoOpen: (value: boolean) => void;
   swapSide: () => void;
+  /** 在正文旁边打开配对的 PDF（按设置放左或右） */
+  openPdf: () => void;
   /** delta 为 null 表示适合页宽 */
   zoom: (delta: number | null) => void;
   rebind: () => void;
@@ -250,23 +256,39 @@ function ToolbarCard({ status, placement, dock, reducedMotion, portalContainer, 
                 if (next) actions.setMode(next);
               }}
             >
-              {MODES.map((mode) => (
-                <Toggle key={mode.value} value={mode.value} className="aps-segment" aria-label={mode.hint} title={mode.hint}>
-                  {status.mode === mode.value ? <motion.span layoutId="aps-seg-ind" className="aps-seg-ind" transition={SPRING} /> : null}
-                  <span className="aps-segment-label">{mode.label}</span>
-                </Toggle>
-              ))}
+              {MODES.map((mode) => {
+                const hint = !status.pdfOpen && mode.value !== "paused" ? `${mode.hint}（会先打开 PDF）` : mode.hint;
+                return (
+                  <Toggle key={mode.value} value={mode.value} className="aps-segment" aria-label={hint} title={hint}>
+                    {status.mode === mode.value ? <motion.span layoutId="aps-seg-ind" className="aps-seg-ind" transition={SPRING} /> : null}
+                    <span className="aps-segment-label">{mode.label}</span>
+                  </Toggle>
+                );
+              })}
             </ToggleGroup>
           </LayoutGroup>
-          <button
-            type="button"
-            className="aps-grp aps-swap aps-ib"
-            aria-label={status.pdfSide === "left" ? "PDF 在左，点击换到右边" : "PDF 在右，点击换到左边"}
-            onClick={() => actions.swapSide()}
-          >
-            <span className="aps-ico">⇄</span>
-            <span>{status.pdfSide === "left" ? "PDF 左" : "PDF 右"}</span>
-          </button>
+          {status.pdfOpen ? (
+            <button
+              type="button"
+              className="aps-grp aps-swap aps-ib"
+              aria-label={status.pdfSide === "left" ? "PDF 在左，点击换到右边" : "PDF 在右，点击换到左边"}
+              onClick={() => actions.swapSide()}
+            >
+              <span className="aps-ico">⇄</span>
+              <span>{status.pdfSide === "left" ? "PDF 左" : "PDF 右"}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="aps-grp aps-open-pdf aps-ib"
+              aria-label={`在${status.pdfSide === "left" ? "左" : "右"}边打开配对的 PDF`}
+              title={`在${status.pdfSide === "left" ? "左" : "右"}边打开 ${status.pdfName}`}
+              onClick={() => actions.openPdf()}
+            >
+              <PdfIcon />
+              <span>打开 PDF</span>
+            </button>
+          )}
           <OverflowMenu status={status} actions={actions} container={portalContainer} autoOpenLabel={autoOpenLabel} />
         </>
       )}
